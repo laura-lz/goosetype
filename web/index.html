@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GooseType</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar" aria-label="GooseType controls">
+        <div class="brand">
+          <h1>GooseType</h1>
+          <p>Generative goose glyph engine</p>
+        </div>
+
+        <label class="text-field">
+          <span>Text</span>
+          <input id="textInput" value="GOOSE TYPE" maxlength="42" />
+        </label>
+
+        <div class="control">
+          <span>Preset</span>
+          <div class="segmented" id="presetGroup">
+            <button data-preset="regular" class="active">Regular</button>
+            <button data-preset="abstract">Abstract</button>
+            <button data-preset="italic">Italic</button>
+            <button data-preset="bold">Bold</button>
+            <button data-preset="cursive">Cursive</button>
+          </div>
+        </div>
+
+        <div class="control">
+          <span>Mode</span>
+          <div class="segmented" id="modeGroup">
+            <button data-mode="photo" class="active">Photo</button>
+            <button data-mode="silhouette">Silhouette</button>
+            <button data-mode="contour">Contour</button>
+          </div>
+        </div>
+
+        <label class="slider">
+          <span>Readable <b id="readabilityValue">0.82</b></span>
+          <input id="readability" type="range" min="0" max="1" step="0.01" value="0.82" />
+        </label>
+
+        <label class="slider">
+          <span>Abstract <b id="abstractionValue">0.18</b></span>
+          <input id="abstraction" type="range" min="0" max="1" step="0.01" value="0.18" />
+        </label>
+
+        <label class="slider">
+          <span>Boldness <b id="boldnessValue">0.48</b></span>
+          <input id="boldness" type="range" min="0" max="1" step="0.01" value="0.48" />
+        </label>
+
+        <label class="slider">
+          <span>Slant <b id="slantValue">0.00</b></span>
+          <input id="slant" type="range" min="-1" max="1" step="0.01" value="0" />
+        </label>
+
+        <label class="slider">
+          <span>Width <b id="widthValue">0.52</b></span>
+          <input id="width" type="range" min="0" max="1" step="0.01" value="0.52" />
+        </label>
+
+        <label class="slider">
+          <span>Cursive <b id="cursiveValue">0.12</b></span>
+          <input id="cursive" type="range" min="0" max="1" step="0.01" value="0.12" />
+        </label>
+
+        <label class="toggle">
+          <input id="twoGeese" type="checkbox" checked />
+          <span>Allow two geese</span>
+        </label>
+      </section>
+
+      <section class="stage" aria-label="Generated goose type">
+        <div class="status" id="status">Loading goose library...</div>
+        <div class="glyphRow" id="glyphRow"></div>
+        <div class="metrics" id="metrics"></div>
+      </section>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,249 @@
+:root {
+  color-scheme: light;
+  --ink: #15191d;
+  --muted: #5f6870;
+  --paper: #f7f4ed;
+  --panel: #ffffff;
+  --line: #d8d4c9;
+  --accent: #16745c;
+  --accent-2: #bd4b37;
+  --dark: #20272a;
+  --shadow: 0 16px 48px rgba(30, 36, 38, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  min-height: 100vh;
+}
+
+.toolbar {
+  align-content: start;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.brand h1 {
+  font-size: 32px;
+  line-height: 1;
+  margin: 0 0 8px;
+}
+
+.brand p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.text-field,
+.slider,
+.control,
+.toggle {
+  display: grid;
+  gap: 8px;
+}
+
+.text-field span,
+.slider span,
+.control > span,
+.toggle span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.text-field input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 20px;
+  min-width: 0;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.segmented {
+  background: #ece8dd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  padding: 3px;
+}
+
+.segmented button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--dark);
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.segmented button.active {
+  background: var(--panel);
+  box-shadow: 0 1px 5px rgba(25, 30, 33, 0.12);
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.slider span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.slider b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.slider input {
+  accent-color: var(--accent);
+  width: 100%;
+}
+
+.toggle {
+  align-items: center;
+  grid-template-columns: auto 1fr;
+}
+
+.toggle input {
+  accent-color: var(--accent-2);
+  height: 18px;
+  width: 18px;
+}
+
+.stage {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  padding: 32px;
+}
+
+.status {
+  color: var(--muted);
+  font-size: 14px;
+  min-height: 24px;
+}
+
+.glyphRow {
+  align-content: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 1.2vw, 18px);
+  padding: 20px 0 32px;
+}
+
+.glyph {
+  --glyph-width: 128px;
+  --glyph-slant: 0deg;
+  aspect-ratio: 0.72;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(21, 25, 29, 0.08);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  flex: 0 0 var(--glyph-width);
+  overflow: hidden;
+  position: relative;
+  transform: skewX(var(--glyph-slant));
+}
+
+.glyph.space {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  flex-basis: calc(var(--glyph-width) * 0.44);
+}
+
+.glyphLetter {
+  bottom: 6px;
+  color: rgba(21, 25, 29, 0.22);
+  font-size: 18px;
+  font-weight: 900;
+  left: 8px;
+  position: absolute;
+  z-index: 3;
+}
+
+.goosePart {
+  height: 82%;
+  left: 50%;
+  object-fit: contain;
+  position: absolute;
+  top: 50%;
+  transform-origin: center;
+  width: 108%;
+  z-index: 2;
+}
+
+.goosePart.contour {
+  filter: contrast(1.35) saturate(0) brightness(1.05) drop-shadow(0 0 0 #111) drop-shadow(0 0 1px #111);
+  opacity: 0.72;
+}
+
+.metrics {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  padding-top: 16px;
+}
+
+.metric {
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(21, 25, 29, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.metric strong {
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+}
+
+@media (max-width: 840px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    border-bottom: 1px solid var(--line);
+    border-right: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .stage {
+    padding: 20px;
+  }
+
+  .glyph {
+    --glyph-width: 88px;
+  }
+}
+
