@@ -16,17 +16,11 @@ const FONT_OPTIONS = {
   },
 };
 
-const STYLE_OPTIONS = {
-  standard: { label: "Standard", weight: 500, style: "normal", familySuffix: "" },
-  italic: { label: "Italic", weight: 500, style: "italic", familySuffix: "" },
-  bold: { label: "Bold", weight: 800, style: "normal", familySuffix: "" },
-  cursive: { label: "Cursive", weight: 520, style: "italic", familySuffix: ", cursive" },
-};
-
 const state = {
   text: "GOOSETYPE",
   font: "arial",
-  style: "standard",
+  italic: false,
+  bold: false,
   readability: 68,
   mode: "photo",
   allCaps: true,
@@ -68,7 +62,7 @@ function bindControls() {
   els.styleGroup.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-style]");
     if (!button) return;
-    state.style = button.dataset.style;
+    state[button.dataset.style] = !state[button.dataset.style];
     setActiveStyle();
     render();
   });
@@ -103,14 +97,14 @@ function bindControls() {
 
 function render() {
   const font = FONT_OPTIONS[state.font];
-  const style = STYLE_OPTIONS[state.style];
+  const style = currentStyle();
   const text = state.allCaps ? state.text.toUpperCase() : state.text;
   const abstractness = 100 - state.readability;
 
   els.fontPreview.textContent = text || "GOOSETYPE";
-  els.fontPreview.style.fontFamily = `${font.family}${style.familySuffix}`;
+  els.fontPreview.style.fontFamily = font.family;
   els.fontPreview.style.fontWeight = style.weight;
-  els.fontPreview.style.fontStyle = style.style;
+  els.fontPreview.style.fontStyle = state.italic ? "italic" : "normal";
   els.fontPreview.style.letterSpacing = `${Math.round(abstractness / 16)}px`;
   els.fontPreview.classList.toggle("abstract", state.readability < 42);
   els.fontPreview.classList.toggle("precise", state.readability >= 70);
@@ -128,7 +122,9 @@ function render() {
 
 function setActiveStyle() {
   for (const button of els.styleGroup.querySelectorAll("button")) {
-    button.classList.toggle("active", button.dataset.style === state.style);
+    const isActive = Boolean(state[button.dataset.style]);
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
   }
 }
 
@@ -139,7 +135,7 @@ function setActiveMode() {
 }
 
 function styleSummary() {
-  return `${readabilityLabel()}, ${STYLE_OPTIONS[state.style].label.toLowerCase()}`;
+  return `${readabilityLabel()}, ${currentStyle().label.toLowerCase()}`;
 }
 
 function readabilityLabel() {
@@ -149,11 +145,14 @@ function readabilityLabel() {
 }
 
 function buildGenerationRequest() {
+  const style = currentStyle();
   return {
     text: state.allCaps ? state.text.toUpperCase() : state.text,
     reference_font: {
       family: FONT_OPTIONS[state.font].label,
-      style: STYLE_OPTIONS[state.style].label,
+      style: style.label,
+      bold: state.bold,
+      italic: state.italic,
     },
     non_font_dependent_controls: {
       readability: state.readability / 100,
@@ -168,6 +167,13 @@ function buildGenerationRequest() {
       "generate and return ttf font",
     ],
   };
+}
+
+function currentStyle() {
+  if (state.bold && state.italic) return { label: "Bold Italic", weight: 800 };
+  if (state.bold) return { label: "Bold", weight: 800 };
+  if (state.italic) return { label: "Italic", weight: 500 };
+  return { label: "Standard", weight: 500 };
 }
 
 function downloadRequestPayload(payload) {

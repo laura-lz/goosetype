@@ -14,6 +14,23 @@ raw goose photos
 -> optional static font export
 ```
 
+## Image And Font Pipeline
+
+The analysis pipeline is split into practical scripts:
+
+```bash
+python3 scripts/extract_geese.py --input goose_photos_square --output data/processed
+python3 scripts/compute_features.py --metadata data/processed/metadata.json --output data/processed/features.json
+python3 scripts/analyze_font.py --name arial --font "/System/Library/Fonts/Supplemental/Arial.ttf" --output data/processed/font_targets/arial.json
+python3 scripts/select_candidates.py --features data/processed/features.json --font-targets data/processed/font_targets/arial.json --output data/processed/candidates.json
+```
+
+`extract_geese.py` identifies foreground goose regions, separates disconnected geese into individual cutouts, erases backgrounds, and keeps overlapping foreground groups together. If an overlapping scene has a fully visible front goose, a future stronger segmentation model or manual mask can provide that extra instance without changing the downstream metadata shape.
+
+`analyze_font.py` is the future import-font hook: it rasterizes selected letters from a `.ttf` or `.otf`, stores masks, and calculates the same feature family used for geese.
+
+`select_candidates.py` avoids doing expensive mask comparison for every goose-letter pair. It first ranks candidates by cheap feature similarity such as aspect ratio, curvature, boldness/fill, and slant, then applies pixel IoU only to the narrowed shortlist.
+
 ## Design Notes
 
 GooseType treats each goose as a glyph candidate with measurable properties:

@@ -6,16 +6,35 @@ import json
 from pathlib import Path
 
 try:
-    from PIL import Image, ImageChops, ImageFilter, ImageStat
+    from PIL import Image
 except ImportError as error:
     raise SystemExit("Pillow is required: python3 -m pip install Pillow") from error
 
+from goosetype.image_features import (
+    IMAGE_SUFFIXES,
+    build_foreground_mask,
+    component_mask,
+    connected_components,
+    crop_with_padding,
+    cutout_from_mask,
+    measure_mask,
+    silhouette_from_mask,
+)
+
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create first-pass goose masks, cutouts, silhouettes, and metadata.")
-    parser.add_argument("--input", default="goose_photos_square", help="Folder of raw or square goose images.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Identify goose foreground regions, separate non-overlapping geese into instances, "
+            "crop them, erase backgrounds, and write metadata."
+        )
+    )
+    parser.add_argument("--input", default="goose_photos_square", help="Folder of raw goose images.")
     parser.add_argument("--output", default="data/processed", help="Processed data folder.")
-    parser.add_argument("--threshold", type=float, default=54.0, help="Foreground threshold for background-distance masking.")
+    parser.add_argument("--threshold", type=float, default=54.0, help="Foreground threshold.")
+    parser.add_argument("--min-area", type=int, default=2200, help="Smallest connected component to keep.")
+    parser.add_argument("--padding", type=int, default=28, help="Pixels of padding around each extracted goose.")
+    parser.add_argument("--include-scene-mask", action="store_true", help="Also keep whole-scene masks for debugging.")
     args = parser.parse_args()
 
     input_dir = Path(args.input)
@@ -23,97 +42,71 @@ def main() -> None:
     masks_dir = output_dir / "masks"
     cutouts_dir = output_dir / "cutouts"
     silhouettes_dir = output_dir / "silhouettes"
+    debug_dir = output_dir / "debug_scene_masks"
     for directory in (masks_dir, cutouts_dir, silhouettes_dir):
         directory.mkdir(parents=True, exist_ok=True)
+    if args.include_scene_mask:
+        debug_dir.mkdir(parents=True, exist_ok=True)
 
-    images = sorted(path for path in input_dir.iterdir() if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"})
     metadata = []
-    for index, image_path in enumerate(images, start=1):
-        goose_id = f"goose_{index:04d}"
+    goose_index = 1
+    for image_path in sorted(path for path in input_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES):
         image = Image.open(image_path).convert("RGBA")
-        mask = build_mask(image, args.threshold)
-        bbox = mask.getbbox() or (0, 0, image.width, image.height)
-        cutout = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        cutout.paste(image, mask=mask)
-        silhouette = Image.new("RGBA", image.size, (22, 28, 29, 255))
-        silhouette.putalpha(mask)
+        scene_mask = build_foreground_mask(image, threshold=args.threshold)
+        if args.include_scene_mask:
+            scene_mask.save(debug_dir / f"{image_path.stem}_mask.png")
 
-        mask_path = masks_dir / f"{goose_id}.png"
-        cutout_path = cutouts_dir / f"{goose_id}.png"
-        silhouette_path = silhouettes_dir / f"{goose_id}.png"
-        mask.save(mask_path)
-        cutout.save(cutout_path)
-        silhouette.save(silhouette_path)
+        components = connected_components(scene_mask, min_area=args.min_area)
+        if not components:
+            components = []
+            bbox = scene_mask.getbbox()
+            if bbox:
+                area = sum(1 for value in scene_mask.getdata() if value > 127)
+                components.append(type("ComponentLike", (), {"bbox": bbox, "area": area})())
 
-        x0, y0, x1, y1 = bbox
-        width = x1 - x0
-        height = y1 - y0
-        metadata.append(
-            {
-                "id": goose_id,
-                "source_image": str(image_path),
-                "cutout_path": str(cutout_path),
-                "mask_path": str(mask_path),
-                "silhouette_path": str(silhouette_path),
-                "bbox": [x0, y0, width, height],
-                "width": width,
-                "height": height,
-                "aspect_ratio": round(width / max(height, 1), 4),
-            }
-        )
-        print(f"{goose_id}: {image_path.name} -> bbox={metadata[-1]['bbox']}")
+        for component_index, component in enumerate(components, start=1):
+            goose_id = f"goose_{goose_index:04d}"
+            instance_mask = component_mask(scene_mask, component.bbox)
+            cropped_image, cropped_mask, padded_bbox = crop_with_padding(image, instance_mask, component.bbox, args.padding)
+            cutout = cutout_from_mask(cropped_image, cropped_mask)
+            silhouette = silhouette_from_mask(cropped_mask)
+
+            mask_path = masks_dir / f"{goose_id}.png"
+            cutout_path = cutouts_dir / f"{goose_id}.png"
+            silhouette_path = silhouettes_dir / f"{goose_id}.png"
+            cropped_mask.save(mask_path)
+            cutout.save(cutout_path)
+            silhouette.save(silhouette_path)
+
+            features = measure_mask(cropped_mask)
+            x0, y0, x1, y1 = padded_bbox
+            metadata.append(
+                {
+                    "id": goose_id,
+                    "source_image": str(image_path),
+                    "source_component_index": component_index,
+                    "extraction_kind": "single_component",
+                    "overlap_note": (
+                        "Disconnected foreground components are separated. Overlapping geese remain grouped "
+                        "unless a stronger segmentation model or manual mask supplies separate instances."
+                    ),
+                    "cutout_path": str(cutout_path),
+                    "mask_path": str(mask_path),
+                    "silhouette_path": str(silhouette_path),
+                    "bbox": [x0, y0, x1 - x0, y1 - y0],
+                    "width": cropped_image.width,
+                    "height": cropped_image.height,
+                    "aspect_ratio": features["aspect_ratio"],
+                    "component_area": component.area,
+                }
+            )
+            print(f"{goose_id}: {image_path.name} component={component_index} bbox={metadata[-1]['bbox']}")
+            goose_index += 1
 
     output_path = output_dir / "metadata.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    print(f"Wrote {output_path}")
-
-
-def build_mask(image: Image.Image, threshold: float) -> Image.Image:
-    small = image.resize((220, 220))
-    rgb = small.convert("RGB")
-    bg = estimate_background(rgb)
-    bg_image = Image.new("RGB", rgb.size, tuple(int(value) for value in bg))
-    diff = ImageChops.difference(rgb, bg_image).convert("L")
-
-    saturation = rgb.convert("HSV").split()[1]
-    center = center_weight(rgb.size)
-    score = ImageChops.add(diff, saturation.point(lambda value: value * 0.5))
-    score = ImageChops.add(score, center)
-    mask_small = score.point(lambda value: 255 if value > threshold else 0)
-    mask_small = mask_small.filter(ImageFilter.MedianFilter(5))
-    mask_small = mask_small.filter(ImageFilter.MaxFilter(5))
-    mask = mask_small.resize(image.size, Image.Resampling.LANCZOS)
-    return mask.point(lambda value: 255 if value > 80 else 0)
-
-
-def estimate_background(image: Image.Image) -> tuple[float, float, float]:
-    width, height = image.size
-    sample_boxes = [
-        (0, 0, 18, 18),
-        (width - 18, 0, width, 18),
-        (0, height - 18, 18, height),
-        (width - 18, height - 18, width, height),
-        (width // 2 - 9, 0, width // 2 + 9, 18),
-        (width // 2 - 9, height - 18, width // 2 + 9, height),
-    ]
-    samples = []
-    for box in sample_boxes:
-        stat = ImageStat.Stat(image.crop(box))
-        samples.append(stat.mean)
-    return tuple(sum(sample[channel] for sample in samples) / len(samples) for channel in range(3))
-
-
-def center_weight(size: tuple[int, int]) -> Image.Image:
-    width, height = size
-    pixels = []
-    for y in range(height):
-        for x in range(width):
-            dx = (x / width - 0.5) * 2
-            dy = (y / height - 0.5) * 2
-            pixels.append(int(max(0, 1 - (dx * dx + dy * dy) ** 0.5) * 26))
-    image = Image.new("L", size)
-    image.putdata(pixels)
-    return image
+    print(f"Wrote {len(metadata)} goose instances to {output_path}")
 
 
 if __name__ == "__main__":
