@@ -4,85 +4,92 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GooseType</title>
-    <link rel="stylesheet" href="src/styles.css" />
+    <link rel="stylesheet" href="src/styles.css?v=3" />
   </head>
   <body>
-    <main class="app">
-      <section class="toolbar" aria-label="GooseType controls">
-        <div class="brand">
+    <main class="shell">
+      <header class="topbar">
+        <div>
           <h1>GooseType</h1>
-          <p>Generative goose glyph engine</p>
+          <p>Generate a goose-built font family from a reference type style.</p>
         </div>
+        <button id="downloadButton" class="downloadButton" type="button" aria-describedby="exportStatus" disabled>
+          Download TTF
+        </button>
+      </header>
 
-        <label class="text-field">
-          <span>Text</span>
-          <input id="textInput" value="GOOSE TYPE" maxlength="42" />
-        </label>
+      <section class="workspace">
+        <aside class="controls" aria-label="Font generation controls">
+          <label class="field">
+            <span>Text Input</span>
+            <textarea id="textInput" rows="4" maxlength="120">GOOSETYPE</textarea>
+          </label>
 
-        <div class="control">
-          <span>Preset</span>
-          <div class="segmented" id="presetGroup">
-            <button data-preset="regular" class="active">Regular</button>
-            <button data-preset="abstract">Abstract</button>
-            <button data-preset="italic">Italic</button>
-            <button data-preset="bold">Bold</button>
-            <button data-preset="cursive">Cursive</button>
+          <label class="field">
+            <span>Font Similarity</span>
+            <select id="fontSelect">
+              <option value="arial">Arial</option>
+              <option value="times">Times New Roman</option>
+            </select>
+          </label>
+
+          <div class="field">
+            <span>Preset</span>
+            <div class="segmented" id="styleGroup">
+              <button class="active" type="button" data-style="standard">Standard</button>
+              <button type="button" data-style="italic">Italic</button>
+              <button type="button" data-style="bold">Bold</button>
+            </div>
           </div>
-        </div>
 
-        <div class="control">
-          <span>Mode</span>
-          <div class="segmented" id="modeGroup">
-            <button data-mode="photo" class="active">Photo</button>
-            <button data-mode="silhouette">Silhouette</button>
-            <button data-mode="contour">Contour</button>
+          <label class="slider">
+            <span>
+              <b>Readability</b>
+            </span>
+            <input id="readabilitySlider" type="range" min="0" max="100" value="68" />
+          </label>
+
+          <div class="field">
+            <span>Mode</span>
+            <div class="segmented modeSegmented" id="modeGroup">
+              <button class="active" type="button" data-mode="photo">Photo</button>
+              <button type="button" data-mode="silhouette">Silhouette</button>
+            </div>
           </div>
-        </div>
 
-        <label class="slider">
-          <span>Readable <b id="readabilityValue">0.82</b></span>
-          <input id="readability" type="range" min="0" max="1" step="0.01" value="0.82" />
-        </label>
+          <label class="toggle">
+            <input id="allCapsToggle" type="checkbox" checked />
+            <span>All caps generation</span>
+          </label>
+        </aside>
 
-        <label class="slider">
-          <span>Abstract <b id="abstractionValue">0.18</b></span>
-          <input id="abstraction" type="range" min="0" max="1" step="0.01" value="0.18" />
-        </label>
+        <section class="displayPanel" aria-label="Generated font display">
+          <div class="displayHeader">
+            <div>
+              <span class="eyebrow">Font Display</span>
+              <h2 id="previewTitle">Arial Standard</h2>
+            </div>
+            <div class="scoreBadge">
+              <span id="readabilityLabel">68%</span>
+              <small id="readabilityModeLabel">readable</small>
+            </div>
+          </div>
 
-        <label class="slider">
-          <span>Boldness <b id="boldnessValue">0.48</b></span>
-          <input id="boldness" type="range" min="0" max="1" step="0.01" value="0.48" />
-        </label>
+          <div class="fontDisplayBox">
+            <p id="fontPreview" class="fontPreview">GOOSETYPE</p>
+          </div>
 
-        <label class="slider">
-          <span>Slant <b id="slantValue">0.00</b></span>
-          <input id="slant" type="range" min="-1" max="1" step="0.01" value="0" />
-        </label>
-
-        <label class="slider">
-          <span>Width <b id="widthValue">0.52</b></span>
-          <input id="width" type="range" min="0" max="1" step="0.01" value="0.52" />
-        </label>
-
-        <label class="slider">
-          <span>Cursive <b id="cursiveValue">0.12</b></span>
-          <input id="cursive" type="range" min="0" max="1" step="0.01" value="0.12" />
-        </label>
-
-        <label class="toggle">
-          <input id="twoGeese" type="checkbox" checked />
-          <span>Allow two geese</span>
-        </label>
-      </section>
-
-      <section class="stage" aria-label="Generated goose type">
-        <div class="status" id="status">Loading goose library...</div>
-        <div class="glyphRow" id="glyphRow"></div>
-        <div class="metrics" id="metrics"></div>
+          <div class="exportPanel">
+            <div>
+              <strong>TTF Export</strong>
+              <p id="exportStatus">Frontend request builder ready. Backend font generation endpoint pending.</p>
+            </div>
+            <button id="requestButton" type="button">Download Request JSON</button>
+          </div>
+        </section>
       </section>
     </main>
 
-    <script type="module" src="src/app.js"></script>
+    <script src="src/app.js?v=3"></script>
   </body>
 </html>
-
