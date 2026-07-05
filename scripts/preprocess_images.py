@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 try:
     from PIL import Image
@@ -29,8 +32,19 @@ def main() -> None:
             "crop them, erase backgrounds, and write metadata."
         )
     )
-    parser.add_argument("--input", default="goose_photos_square", help="Folder of raw goose images.")
+    parser.add_argument("--input", default="goose_photos", help="Folder of raw goose images.")
     parser.add_argument("--output", default="data/processed", help="Processed data folder.")
+    parser.add_argument(
+        "--segmentation-backend",
+        choices=("auto", "rembg", "grabcut", "heuristic"),
+        default="auto",
+        help="Foreground extraction backend. auto tries rembg, then GrabCut, then heuristic.",
+    )
+    parser.add_argument(
+        "--rembg-model",
+        default="isnet-general-use",
+        help="rembg model/session name when --segmentation-backend uses rembg.",
+    )
     parser.add_argument("--threshold", type=float, default=54.0, help="Foreground threshold.")
     parser.add_argument("--min-area", type=int, default=2200, help="Smallest connected component to keep.")
     parser.add_argument("--padding", type=int, default=28, help="Pixels of padding around each extracted goose.")
@@ -52,7 +66,12 @@ def main() -> None:
     goose_index = 1
     for image_path in sorted(path for path in input_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES):
         image = Image.open(image_path).convert("RGBA")
-        scene_mask = build_foreground_mask(image, threshold=args.threshold)
+        scene_mask = build_foreground_mask(
+            image,
+            threshold=args.threshold,
+            backend=args.segmentation_backend,
+            rembg_model=args.rembg_model,
+        )
         if args.include_scene_mask:
             scene_mask.save(debug_dir / f"{image_path.stem}_mask.png")
 
@@ -86,6 +105,8 @@ def main() -> None:
                     "source_image": str(image_path),
                     "source_component_index": component_index,
                     "extraction_kind": "single_component",
+                    "segmentation_backend": args.segmentation_backend,
+                    "rembg_model": args.rembg_model if args.segmentation_backend in {"auto", "rembg"} else None,
                     "overlap_note": (
                         "Disconnected foreground components are separated. Overlapping geese remain grouped "
                         "unless a stronger segmentation model or manual mask supplies separate instances."
@@ -111,4 +132,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -4,7 +4,10 @@ from __future__ import annotations
 import argparse
 import json
 import string
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from goosetype.image_features import measure_mask, render_glyph_mask
 
@@ -49,4 +52,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

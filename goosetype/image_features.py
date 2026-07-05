@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from io import BytesIO
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,7 +18,72 @@ class Component:
     area: int
 
 
-def build_foreground_mask(image: Image.Image, threshold: float = 54.0) -> Image.Image:
+def build_foreground_mask(
+    image: Image.Image,
+    threshold: float = 54.0,
+    backend: str = "auto",
+    rembg_model: str = "isnet-general-use",
+) -> Image.Image:
+    backend = backend.lower()
+    if backend not in {"auto", "rembg", "grabcut", "heuristic"}:
+        raise ValueError(f"Unknown segmentation backend: {backend}")
+
+    errors = []
+    if backend in {"auto", "rembg"}:
+        try:
+            return build_rembg_mask(image, model_name=rembg_model)
+        except Exception as error:
+            if backend == "rembg":
+                raise
+            errors.append(f"rembg unavailable: {error}")
+
+    if backend in {"auto", "grabcut"}:
+        try:
+            return build_grabcut_mask(image)
+        except Exception as error:
+            if backend == "grabcut":
+                raise
+            errors.append(f"grabcut unavailable: {error}")
+
+    if errors and backend == "auto":
+        print("Segmentation fallback:", "; ".join(errors))
+    return build_heuristic_foreground_mask(image, threshold=threshold)
+
+
+def build_rembg_mask(image: Image.Image, model_name: str = "isnet-general-use") -> Image.Image:
+    from rembg import new_session, remove
+
+    session = new_session(model_name)
+    result = remove(image.convert("RGBA"), session=session)
+    if isinstance(result, bytes):
+        result = Image.open(BytesIO(result)).convert("RGBA")
+    alpha = result.convert("RGBA").getchannel("A")
+    return clean_mask(alpha)
+
+
+def build_grabcut_mask(image: Image.Image) -> Image.Image:
+    import cv2
+    import numpy as np
+
+    rgb = image.convert("RGB")
+    array = np.array(rgb)
+    height, width = array.shape[:2]
+    inset_x = max(8, int(width * 0.06))
+    inset_y = max(8, int(height * 0.06))
+    rect = (inset_x, inset_y, max(1, width - inset_x * 2), max(1, height - inset_y * 2))
+    mask = np.zeros((height, width), np.uint8)
+    bgd_model = np.zeros((1, 65), np.float64)
+    fgd_model = np.zeros((1, 65), np.float64)
+    cv2.grabCut(array, mask, rect, bgd_model, fgd_model, 6, cv2.GC_INIT_WITH_RECT)
+    binary = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype("uint8")
+    kernel_size = max(3, min(width, height) // 90)
+    kernel = np.ones((kernel_size, kernel_size), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    return clean_mask(Image.fromarray(binary, mode="L"))
+
+
+def build_heuristic_foreground_mask(image: Image.Image, threshold: float = 54.0) -> Image.Image:
     small = image.convert("RGBA").resize((220, 220), Image.Resampling.LANCZOS)
     rgb = small.convert("RGB")
     bg = estimate_background(rgb)
@@ -28,7 +94,15 @@ def build_foreground_mask(image: Image.Image, threshold: float = 54.0) -> Image.
     mask = score.point(lambda value: 255 if value > threshold else 0)
     mask = mask.filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.MaxFilter(5))
     mask = mask.resize(image.size, Image.Resampling.LANCZOS)
-    return mask.point(lambda value: 255 if value > 80 else 0)
+    return clean_mask(mask.point(lambda value: 255 if value > 80 else 0))
+
+
+def clean_mask(mask: Image.Image) -> Image.Image:
+    cleaned = mask.convert("L")
+    cleaned = cleaned.filter(ImageFilter.MedianFilter(5))
+    cleaned = cleaned.filter(ImageFilter.MaxFilter(3))
+    cleaned = cleaned.filter(ImageFilter.MinFilter(3))
+    return cleaned.point(lambda value: 255 if value > 96 else 0)
 
 
 def estimate_background(image: Image.Image) -> tuple[float, float, float]:
@@ -273,4 +347,3 @@ def mask_iou(a: Image.Image, b: Image.Image, size: int = 160) -> dict:
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
     return max(minimum, min(maximum, value))
-
