@@ -21,6 +21,7 @@ from goosetype.image_features import (
     crop_with_padding,
     cutout_from_mask,
     measure_mask,
+    score_goose_candidate,
     silhouette_from_mask,
 )
 
@@ -47,6 +48,8 @@ def main() -> None:
     )
     parser.add_argument("--threshold", type=float, default=54.0, help="Foreground threshold.")
     parser.add_argument("--min-area", type=int, default=2200, help="Smallest connected component to keep.")
+    parser.add_argument("--min-goose-score", type=float, default=0.5, help="Minimum geometry score for keeping a component as a goose.")
+    parser.add_argument("--keep-rejected", action="store_true", help="Save rejected non-goose components for tuning/debugging.")
     parser.add_argument("--padding", type=int, default=28, help="Pixels of padding around each extracted goose.")
     parser.add_argument("--include-scene-mask", action="store_true", help="Also keep whole-scene masks for debugging.")
     args = parser.parse_args()
@@ -56,9 +59,12 @@ def main() -> None:
     masks_dir = output_dir / "masks"
     cutouts_dir = output_dir / "cutouts"
     silhouettes_dir = output_dir / "silhouettes"
+    rejected_dir = output_dir / "rejected"
     debug_dir = output_dir / "debug_scene_masks"
     for directory in (masks_dir, cutouts_dir, silhouettes_dir):
         directory.mkdir(parents=True, exist_ok=True)
+    if args.keep_rejected:
+        rejected_dir.mkdir(parents=True, exist_ok=True)
     if args.include_scene_mask:
         debug_dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,9 +90,22 @@ def main() -> None:
                 components.append(type("ComponentLike", (), {"bbox": bbox, "area": area})())
 
         for component_index, component in enumerate(components, start=1):
-            goose_id = f"goose_{goose_index:04d}"
             instance_mask = component_mask(scene_mask, component.bbox)
             cropped_image, cropped_mask, padded_bbox = crop_with_padding(image, instance_mask, component.bbox, args.padding)
+            features = measure_mask(cropped_mask)
+            candidate = score_goose_candidate(features, image.size, bbox=component.bbox)
+            if candidate["goose_candidate_score"] < args.min_goose_score:
+                if args.keep_rejected:
+                    rejected_id = f"{image_path.stem}_component_{component_index:02d}"
+                    cutout_from_mask(cropped_image, cropped_mask).save(rejected_dir / f"{rejected_id}.png")
+                print(
+                    f"skip: {image_path.name} component={component_index} "
+                    f"score={candidate['goose_candidate_score']:.2f} "
+                    f"reasons={','.join(candidate['goose_candidate_reasons']) or 'low_score'}"
+                )
+                continue
+
+            goose_id = f"goose_{goose_index:04d}"
             cutout = cutout_from_mask(cropped_image, cropped_mask)
             silhouette = silhouette_from_mask(cropped_mask)
 
@@ -97,7 +116,6 @@ def main() -> None:
             cutout.save(cutout_path)
             silhouette.save(silhouette_path)
 
-            features = measure_mask(cropped_mask)
             x0, y0, x1, y1 = padded_bbox
             metadata.append(
                 {
@@ -119,6 +137,7 @@ def main() -> None:
                     "height": cropped_image.height,
                     "aspect_ratio": features["aspect_ratio"],
                     "component_area": component.area,
+                    **candidate,
                 }
             )
             print(f"{goose_id}: {image_path.name} component={component_index} bbox={metadata[-1]['bbox']}")

@@ -35,7 +35,10 @@ Useful extraction options:
 python3 scripts/extract_geese.py --segmentation-backend rembg --rembg-model isnet-general-use
 python3 scripts/extract_geese.py --segmentation-backend grabcut
 python3 scripts/extract_geese.py --segmentation-backend heuristic
+python3 scripts/extract_geese.py --min-goose-score 0.65 --keep-rejected
 ```
+
+After segmentation, each connected component is scored for goose-like geometry before it is saved. The filter rejects common non-goose fragments such as sticks, reeds, tiny blobs, border chunks, very sparse branch-like shapes, and dense bush-like regions using aspect ratio, fill ratio, contour thinness, size, curvature, and border contact. `--keep-rejected` writes rejected components to `data/processed/rejected/` so the threshold can be tuned visually.
 
 `analyze_font.py` is the future import-font hook: it rasterizes selected letters from a `.ttf` or `.otf`, stores masks, and calculates the same feature family used for geese.
 

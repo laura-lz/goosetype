@@ -254,6 +254,77 @@ def measure_mask(mask: Image.Image) -> dict:
     }
 
 
+def score_goose_candidate(
+    features: dict,
+    image_size: tuple[int, int],
+    bbox: tuple[int, int, int, int] | None = None,
+) -> dict:
+    image_width, image_height = image_size
+    image_area = max(1, image_width * image_height)
+    bbox_values = bbox or tuple(features.get("bbox", [0, 0, 1, 1]))
+    x0, y0, x1, y1 = normalize_bbox(bbox_values)
+    bbox_width = max(1, x1 - x0)
+    bbox_height = max(1, y1 - y0)
+    bbox_area_ratio = (bbox_width * bbox_height) / image_area
+    aspect_ratio = float(features.get("aspect_ratio", bbox_width / bbox_height))
+    fill_ratio = float(features.get("fill_ratio", 0))
+    thinness = float(features.get("thinness_score", 0))
+    curvature = float(features.get("curvature_score", 0))
+    area = float(features.get("area", 0))
+    border_contact = border_contact_ratio((x0, y0, x1, y1), image_size)
+
+    score = 1.0
+    reasons: list[str] = []
+
+    checks = [
+        (area >= image_area * 0.0015, 0.45, "too_small"),
+        (bbox_area_ratio <= 0.82, 0.45, "too_large_for_single_goose"),
+        (0.22 <= aspect_ratio <= 4.8, 0.55, "implausible_aspect_ratio"),
+        (0.07 <= fill_ratio <= 0.78, 0.45, "implausible_fill_ratio"),
+        (thinness <= 0.95, 0.55, "too_thin_or_branchlike"),
+        (border_contact <= 0.52, 0.3, "touches_image_border_too_much"),
+    ]
+    for passed, penalty, reason in checks:
+        if not passed:
+            score -= penalty
+            reasons.append(reason)
+
+    # Moderately curved/irregular silhouettes are useful for geese; extreme contour
+    # complexity is often grass, shrubs, or noisy background.
+    if curvature > 0.98 and fill_ratio < 0.18:
+        score -= 0.35
+        reasons.append("noisy_sparse_contour")
+    if bbox_width < 24 or bbox_height < 24:
+        score -= 0.3
+        reasons.append("bbox_too_small")
+
+    return {
+        "goose_candidate_score": round(clamp(score), 4),
+        "goose_candidate_reasons": reasons,
+        "bbox_area_ratio": round(bbox_area_ratio, 4),
+        "border_contact_ratio": round(border_contact, 4),
+        "is_probable_goose": score >= 0.5,
+    }
+
+
+def normalize_bbox(bbox: tuple[int, int, int, int] | list[int]) -> tuple[int, int, int, int]:
+    x0, y0, third, fourth = [int(value) for value in bbox]
+    if third <= x0 or fourth <= y0:
+        return x0, y0, x0 + max(1, third), y0 + max(1, fourth)
+    return x0, y0, third, fourth
+
+
+def border_contact_ratio(bbox: tuple[int, int, int, int], image_size: tuple[int, int]) -> float:
+    x0, y0, x1, y1 = bbox
+    width, height = image_size
+    touches = 0
+    touches += int(x0 <= 1)
+    touches += int(y0 <= 1)
+    touches += int(x1 >= width - 1)
+    touches += int(y1 >= height - 1)
+    return touches / 4
+
+
 def is_edge(values, x: int, y: int, width: int, height: int) -> bool:
     if x == 0 or y == 0 or x == width - 1 or y == height - 1:
         return True
