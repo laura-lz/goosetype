@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from io import BytesIO
 from collections import deque
 from dataclasses import dataclass
@@ -8,8 +9,16 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
+try:
+    from pillow_heif import register_heif_opener
 
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+    register_heif_opener()
+except ImportError:
+    pass
+
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
+_REMBG_SESSIONS = {}
+_OWL_VIT_DETECTOR = None
 
 
 @dataclass(frozen=True)
@@ -18,11 +27,19 @@ class Component:
     area: int
 
 
+@dataclass(frozen=True)
+class Detection:
+    bbox: tuple[int, int, int, int]
+    score: float
+    label: str
+
+
 def build_foreground_mask(
     image: Image.Image,
     threshold: float = 54.0,
     backend: str = "auto",
     rembg_model: str = "isnet-general-use",
+    max_segmentation_side: int = 1600,
 ) -> Image.Image:
     backend = backend.lower()
     if backend not in {"auto", "rembg", "grabcut", "heuristic"}:
@@ -31,7 +48,7 @@ def build_foreground_mask(
     errors = []
     if backend in {"auto", "rembg"}:
         try:
-            return build_rembg_mask(image, model_name=rembg_model)
+            return build_rembg_mask(image, model_name=rembg_model, max_side=max_segmentation_side)
         except Exception as error:
             if backend == "rembg":
                 raise
@@ -50,14 +67,126 @@ def build_foreground_mask(
     return build_heuristic_foreground_mask(image, threshold=threshold)
 
 
-def build_rembg_mask(image: Image.Image, model_name: str = "isnet-general-use") -> Image.Image:
+def build_detector_guided_mask(
+    image: Image.Image,
+    detector_backend: str = "owlvit",
+    detection_queries: tuple[str, ...] = ("goose", "geese", "bird"),
+    detection_threshold: float = 0.12,
+    segmentation_backend: str = "rembg",
+    rembg_model: str = "isnet-general-use",
+    max_segmentation_side: int = 1600,
+    box_padding_ratio: float = 0.08,
+) -> tuple[Image.Image, list[Detection]]:
+    detections = detect_goose_boxes(
+        image,
+        backend=detector_backend,
+        queries=detection_queries,
+        threshold=detection_threshold,
+        max_side=max_segmentation_side,
+    )
+    if not detections:
+        return Image.new("L", image.size, 0), []
+
+    full_mask = Image.new("L", image.size, 0)
+    for detection in detections:
+        crop_box = pad_bbox(detection.bbox, image.size, box_padding_ratio)
+        crop = image.crop(crop_box)
+        crop_mask = build_foreground_mask(
+            crop,
+            backend=segmentation_backend,
+            rembg_model=rembg_model,
+            max_segmentation_side=max_segmentation_side,
+        )
+        full_mask.paste(crop_mask, crop_box)
+    return clean_mask(full_mask), detections
+
+
+def detect_goose_boxes(
+    image: Image.Image,
+    backend: str = "owlvit",
+    queries: tuple[str, ...] = ("goose", "geese", "bird"),
+    threshold: float = 0.12,
+    max_side: int = 1600,
+) -> list[Detection]:
+    backend = backend.lower()
+    if backend in {"none", "off"}:
+        return []
+    if backend != "owlvit":
+        raise ValueError(f"Unknown detector backend: {backend}")
+    return detect_goose_boxes_owlvit(image, queries=queries, threshold=threshold, max_side=max_side)
+
+
+def detect_goose_boxes_owlvit(
+    image: Image.Image,
+    queries: tuple[str, ...] = ("goose", "geese", "bird"),
+    threshold: float = 0.12,
+    max_side: int = 1600,
+) -> list[Detection]:
+    global _OWL_VIT_DETECTOR
+
+    try:
+        from transformers import pipeline
+    except ImportError as error:
+        raise RuntimeError(
+            "OWL-ViT detection requires the optional ML dependencies: "
+            "python3 -m pip install -r requirements-ml.txt"
+        ) from error
+
+    original_size = image.size
+    source = image.convert("RGB")
+    scale_x = scale_y = 1.0
+    if max_side > 0 and max(source.size) > max_side:
+        resized = ImageOps.contain(source, (max_side, max_side), Image.Resampling.LANCZOS)
+        scale_x = original_size[0] / resized.width
+        scale_y = original_size[1] / resized.height
+        source = resized
+
+    if _OWL_VIT_DETECTOR is None:
+        _OWL_VIT_DETECTOR = pipeline(
+            task="zero-shot-object-detection",
+            model="google/owlvit-base-patch32",
+            device=-1,
+        )
+
+    results = _OWL_VIT_DETECTOR(source, candidate_labels=list(queries))
+    detections: list[Detection] = []
+    for result in results:
+        score = float(result.get("score", 0))
+        if score < threshold:
+            continue
+        box = result.get("box", {})
+        x0 = int(round(float(box.get("xmin", 0)) * scale_x))
+        y0 = int(round(float(box.get("ymin", 0)) * scale_y))
+        x1 = int(round(float(box.get("xmax", source.width)) * scale_x))
+        y1 = int(round(float(box.get("ymax", source.height)) * scale_y))
+        bbox = clamp_bbox((x0, y0, x1, y1), original_size)
+        if bbox[2] - bbox[0] < 12 or bbox[3] - bbox[1] < 12:
+            continue
+        detections.append(Detection(bbox=bbox, score=round(score, 4), label=str(result.get("label", ""))))
+
+    return merge_overlapping_detections(detections)
+
+
+def build_rembg_mask(image: Image.Image, model_name: str = "isnet-general-use", max_side: int = 1600) -> Image.Image:
+    os.environ.setdefault("NUMBA_CACHE_DIR", "/tmp/goosetype_numba_cache")
     from rembg import new_session, remove
 
-    session = new_session(model_name)
-    result = remove(image.convert("RGBA"), session=session)
+    session = _REMBG_SESSIONS.get(model_name)
+    if session is None:
+        session = new_session(model_name)
+        _REMBG_SESSIONS[model_name] = session
+
+    original_size = image.size
+    source = image.convert("RGBA")
+    if max_side > 0 and max(source.size) > max_side:
+        source = ImageOps.contain(source, (max_side, max_side), Image.Resampling.LANCZOS)
+
+    result = remove(source, session=session)
     if isinstance(result, bytes):
         result = Image.open(BytesIO(result)).convert("RGBA")
     alpha = result.convert("RGBA").getchannel("A")
+    if alpha.size != original_size:
+        alpha = alpha.resize(original_size, Image.Resampling.LANCZOS)
     return clean_mask(alpha)
 
 
@@ -134,6 +263,28 @@ def center_weight(size: tuple[int, int]) -> Image.Image:
 
 
 def connected_components(mask: Image.Image, min_area: int = 900) -> list[Component]:
+    try:
+        return connected_components_cv2(mask, min_area=min_area)
+    except Exception:
+        return connected_components_python(mask, min_area=min_area)
+
+
+def connected_components_cv2(mask: Image.Image, min_area: int = 900) -> list[Component]:
+    import cv2
+    import numpy as np
+
+    array = np.array(mask.convert("L"))
+    binary = np.where(array > 127, 255, 0).astype("uint8")
+    count, _, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    components: list[Component] = []
+    for index in range(1, count):
+        x, y, width, height, area = stats[index]
+        if int(area) >= min_area:
+            components.append(Component(bbox=(int(x), int(y), int(x + width), int(y + height)), area=int(area)))
+    return sorted(components, key=lambda component: component.area, reverse=True)
+
+
+def connected_components_python(mask: Image.Image, min_area: int = 900) -> list[Component]:
     binary = mask.convert("1")
     width, height = binary.size
     pixels = binary.load()
@@ -188,6 +339,48 @@ def crop_with_padding(image: Image.Image, mask: Image.Image, bbox: tuple[int, in
         min(image.height, y1 + padding),
     )
     return image.crop(padded), mask.crop(padded), padded
+
+
+def pad_bbox(
+    bbox: tuple[int, int, int, int],
+    image_size: tuple[int, int],
+    padding_ratio: float,
+) -> tuple[int, int, int, int]:
+    x0, y0, x1, y1 = bbox
+    padding = int(round(max(x1 - x0, y1 - y0) * padding_ratio))
+    return clamp_bbox((x0 - padding, y0 - padding, x1 + padding, y1 + padding), image_size)
+
+
+def clamp_bbox(bbox: tuple[int, int, int, int], image_size: tuple[int, int]) -> tuple[int, int, int, int]:
+    width, height = image_size
+    x0, y0, x1, y1 = bbox
+    x0 = max(0, min(width - 1, x0))
+    y0 = max(0, min(height - 1, y0))
+    x1 = max(x0 + 1, min(width, x1))
+    y1 = max(y0 + 1, min(height, y1))
+    return x0, y0, x1, y1
+
+
+def merge_overlapping_detections(detections: list[Detection], iou_threshold: float = 0.55) -> list[Detection]:
+    merged: list[Detection] = []
+    for detection in sorted(detections, key=lambda item: item.score, reverse=True):
+        if any(bbox_iou(detection.bbox, existing.bbox) >= iou_threshold for existing in merged):
+            continue
+        merged.append(detection)
+    return merged
+
+
+def bbox_iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+    ix0 = max(ax0, bx0)
+    iy0 = max(ay0, by0)
+    ix1 = min(ax1, bx1)
+    iy1 = min(ay1, by1)
+    intersection = max(0, ix1 - ix0) * max(0, iy1 - iy0)
+    area_a = max(1, (ax1 - ax0) * (ay1 - ay0))
+    area_b = max(1, (bx1 - bx0) * (by1 - by0))
+    return intersection / max(1, area_a + area_b - intersection)
 
 
 def cutout_from_mask(image: Image.Image, mask: Image.Image) -> Image.Image:

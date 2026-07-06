@@ -15,6 +15,7 @@ except ImportError as error:
 
 from goosetype.image_features import (
     IMAGE_SUFFIXES,
+    build_detector_guided_mask,
     build_foreground_mask,
     component_mask,
     connected_components,
@@ -36,6 +37,30 @@ def main() -> None:
     parser.add_argument("--input", default="goose_photos", help="Folder of raw goose images.")
     parser.add_argument("--output", default="data/processed", help="Processed data folder.")
     parser.add_argument(
+        "--detector-backend",
+        choices=("none", "owlvit"),
+        default="none",
+        help="Optional semantic detector. owlvit finds goose boxes before segmentation.",
+    )
+    parser.add_argument(
+        "--detection-query",
+        action="append",
+        default=None,
+        help="Text prompt for detector-backed extraction. Repeat to add prompts.",
+    )
+    parser.add_argument(
+        "--detection-threshold",
+        type=float,
+        default=0.12,
+        help="Minimum detector confidence for keeping a proposed goose box.",
+    )
+    parser.add_argument(
+        "--detector-box-padding",
+        type=float,
+        default=0.08,
+        help="Padding around detector boxes before per-box segmentation, as a ratio of box size.",
+    )
+    parser.add_argument(
         "--segmentation-backend",
         choices=("auto", "rembg", "grabcut", "heuristic"),
         default="auto",
@@ -46,10 +71,17 @@ def main() -> None:
         default="isnet-general-use",
         help="rembg model/session name when --segmentation-backend uses rembg.",
     )
+    parser.add_argument(
+        "--max-segmentation-side",
+        type=int,
+        default=1600,
+        help="Downscale longest image side for segmentation inference; 0 keeps original size.",
+    )
     parser.add_argument("--threshold", type=float, default=54.0, help="Foreground threshold.")
     parser.add_argument("--min-area", type=int, default=2200, help="Smallest connected component to keep.")
     parser.add_argument("--min-goose-score", type=float, default=0.5, help="Minimum geometry score for keeping a component as a goose.")
     parser.add_argument("--keep-rejected", action="store_true", help="Save rejected non-goose components for tuning/debugging.")
+    parser.add_argument("--resume", action="store_true", help="Continue from an existing metadata.json in the output folder.")
     parser.add_argument("--padding", type=int, default=28, help="Pixels of padding around each extracted goose.")
     parser.add_argument("--include-scene-mask", action="store_true", help="Also keep whole-scene masks for debugging.")
     args = parser.parse_args()
@@ -68,16 +100,54 @@ def main() -> None:
     if args.include_scene_mask:
         debug_dir.mkdir(parents=True, exist_ok=True)
 
+    output_path = output_dir / "metadata.json"
     metadata = []
+    processed_sources = set()
     goose_index = 1
+    if args.resume and output_path.exists():
+        metadata = json.loads(output_path.read_text(encoding="utf-8"))
+        processed_sources = {item["source_image"] for item in metadata}
+        goose_index = next_goose_index(metadata)
+        print(f"Resuming from {output_path}: {len(metadata)} geese, next id goose_{goose_index:04d}")
+
     for image_path in sorted(path for path in input_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES):
+        if str(image_path) in processed_sources:
+            print(f"resume skip: {image_path.name}")
+            continue
+        print(f"processing: {image_path.name}")
         image = Image.open(image_path).convert("RGBA")
-        scene_mask = build_foreground_mask(
-            image,
-            threshold=args.threshold,
-            backend=args.segmentation_backend,
-            rembg_model=args.rembg_model,
-        )
+        detection_queries = tuple(args.detection_query or ["goose", "geese", "bird"])
+        detections = []
+        if args.detector_backend != "none":
+            try:
+                scene_mask, detections = build_detector_guided_mask(
+                    image,
+                    detector_backend=args.detector_backend,
+                    detection_queries=detection_queries,
+                    detection_threshold=args.detection_threshold,
+                    segmentation_backend=args.segmentation_backend,
+                    rembg_model=args.rembg_model,
+                    max_segmentation_side=args.max_segmentation_side,
+                    box_padding_ratio=args.detector_box_padding,
+                )
+                print(f"detector: {len(detections)} goose-like boxes")
+            except Exception as error:
+                print(f"detector fallback: {error}")
+                scene_mask = build_foreground_mask(
+                    image,
+                    threshold=args.threshold,
+                    backend=args.segmentation_backend,
+                    rembg_model=args.rembg_model,
+                    max_segmentation_side=args.max_segmentation_side,
+                )
+        else:
+            scene_mask = build_foreground_mask(
+                image,
+                threshold=args.threshold,
+                backend=args.segmentation_backend,
+                rembg_model=args.rembg_model,
+                max_segmentation_side=args.max_segmentation_side,
+            )
         if args.include_scene_mask:
             scene_mask.save(debug_dir / f"{image_path.stem}_mask.png")
 
@@ -124,6 +194,12 @@ def main() -> None:
                     "source_component_index": component_index,
                     "extraction_kind": "single_component",
                     "segmentation_backend": args.segmentation_backend,
+                    "detector_backend": args.detector_backend,
+                    "detection_queries": list(detection_queries) if args.detector_backend != "none" else [],
+                    "detections": [
+                        {"bbox": list(detection.bbox), "score": detection.score, "label": detection.label}
+                        for detection in detections
+                    ],
                     "rembg_model": args.rembg_model if args.segmentation_backend in {"auto", "rembg"} else None,
                     "overlap_note": (
                         "Disconnected foreground components are separated. Overlapping geese remain grouped "
@@ -143,10 +219,22 @@ def main() -> None:
             print(f"{goose_id}: {image_path.name} component={component_index} bbox={metadata[-1]['bbox']}")
             goose_index += 1
 
-    output_path = output_dir / "metadata.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
     print(f"Wrote {len(metadata)} goose instances to {output_path}")
+
+
+def next_goose_index(metadata: list[dict]) -> int:
+    max_index = 0
+    for item in metadata:
+        goose_id = str(item.get("id", ""))
+        if goose_id.startswith("goose_"):
+            try:
+                max_index = max(max_index, int(goose_id.split("_", 1)[1]))
+            except ValueError:
+                pass
+    return max_index + 1
 
 
 if __name__ == "__main__":
