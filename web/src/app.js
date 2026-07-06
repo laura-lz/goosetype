@@ -2,17 +2,12 @@ const FONT_OPTIONS = {
   arial: {
     label: "Arial",
     family: "Arial, Helvetica, sans-serif",
-    feature: "Arial shape masks",
+    candidatesUrl: "/data/font_candidates/arial_candidates.json",
   },
   times: {
     label: "Times New Roman",
     family: "\"Times New Roman\", Times, serif",
-    feature: "Times New Roman serifs",
-  },
-  rubik: {
-    label: "Rubik",
-    family: "Rubik, Arial, sans-serif",
-    feature: "Rubik rounded geometry",
+    candidatesUrl: "/data/font_candidates/times_new_roman_candidates.json",
   },
 };
 
@@ -22,9 +17,12 @@ const state = {
   italic: false,
   bold: false,
   readability: 68,
+  blur: 0,
   mode: "photo",
   allCaps: true,
 };
+
+const candidateCache = {};
 
 const els = {
   textInput: document.querySelector("#textInput"),
@@ -32,6 +30,7 @@ const els = {
   styleGroup: document.querySelector("#styleGroup"),
   modeGroup: document.querySelector("#modeGroup"),
   readabilitySlider: document.querySelector("#readabilitySlider"),
+  blurSlider: document.querySelector("#blurSlider"),
   allCapsToggle: document.querySelector("#allCapsToggle"),
   downloadButton: document.querySelector("#downloadButton"),
   requestButton: document.querySelector("#requestButton"),
@@ -39,13 +38,15 @@ const els = {
   previewTitle: document.querySelector("#previewTitle"),
   readabilityLabel: document.querySelector("#readabilityLabel"),
   readabilityModeLabel: document.querySelector("#readabilityModeLabel"),
-  fontFeatureSummary: document.querySelector("#fontFeatureSummary"),
-  renderModeSummary: document.querySelector("#renderModeSummary"),
-  styleSummary: document.querySelector("#styleSummary"),
   exportStatus: document.querySelector("#exportStatus"),
+  candidateStatus: document.querySelector("#candidateStatus"),
+  candidateStrip: document.querySelector("#candidateStrip"),
 };
 
 bindControls();
+setActiveStyle();
+setActiveMode();
+loadCandidates(state.font);
 render();
 
 function bindControls() {
@@ -56,6 +57,7 @@ function bindControls() {
 
   els.fontSelect.addEventListener("change", () => {
     state.font = els.fontSelect.value;
+    loadCandidates(state.font);
     render();
   });
 
@@ -80,6 +82,11 @@ function bindControls() {
     render();
   });
 
+  els.blurSlider.addEventListener("input", () => {
+    state.blur = Number(els.blurSlider.value);
+    render();
+  });
+
   els.allCapsToggle.addEventListener("input", () => {
     state.allCaps = els.allCapsToggle.checked;
     render();
@@ -95,29 +102,145 @@ function bindControls() {
   });
 }
 
+async function loadCandidates(fontKey) {
+  if (candidateCache[fontKey]) {
+    render();
+    return;
+  }
+
+  const font = FONT_OPTIONS[fontKey];
+  els.candidateStatus.textContent = `Loading ${font.label} goose candidates...`;
+  try {
+    const response = await fetch(font.candidatesUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    candidateCache[fontKey] = await response.json();
+    const letters = Object.keys(candidateCache[fontKey]).length;
+    els.candidateStatus.textContent = `${font.label}: ${letters} letters loaded, 12 ranked candidates per letter.`;
+  } catch (error) {
+    els.candidateStatus.textContent = `Could not load candidate JSON from ${font.candidatesUrl}. Run the page from the repo root server.`;
+    console.error(error);
+  }
+  render();
+}
+
 function render() {
   const font = FONT_OPTIONS[state.font];
   const style = currentStyle();
   const text = state.allCaps ? state.text.toUpperCase() : state.text;
-  const abstractness = 100 - state.readability;
-
-  els.fontPreview.textContent = text || "GOOSETYPE";
-  els.fontPreview.style.fontFamily = font.family;
-  els.fontPreview.style.fontWeight = style.weight;
-  els.fontPreview.style.fontStyle = state.italic ? "italic" : "normal";
-  els.fontPreview.style.letterSpacing = `${Math.round(abstractness / 16)}px`;
-  els.fontPreview.classList.toggle("abstract", state.readability < 42);
-  els.fontPreview.classList.toggle("precise", state.readability >= 70);
-  els.fontPreview.classList.toggle("silhouette", state.mode === "silhouette");
 
   els.previewTitle.textContent = `${font.label} ${style.label}`;
   els.readabilityLabel.textContent = `${state.readability}%`;
   els.readabilityModeLabel.textContent = readabilityLabel();
-  els.fontFeatureSummary.textContent = font.feature;
-  els.renderModeSummary.textContent = `${state.mode === "photo" ? "Photo" : "Silhouette"} mode`;
-  els.styleSummary.textContent = styleSummary();
-
   els.exportStatus.textContent = "Frontend request builder ready. Backend font generation endpoint pending.";
+
+  renderGooseText(text || "GOOSETYPE");
+}
+
+function renderGooseText(text) {
+  const candidates = candidateCache[state.font];
+  els.fontPreview.innerHTML = "";
+  els.fontPreview.classList.toggle("silhouette", state.mode === "silhouette");
+  els.fontPreview.style.setProperty("--goose-blur", `${state.blur}px`);
+  els.candidateStrip.style.setProperty("--goose-blur", `${state.blur}px`);
+
+  if (!candidates) {
+    const loading = document.createElement("p");
+    loading.className = "fontPreviewFallback";
+    loading.textContent = text;
+    loading.style.fontFamily = FONT_OPTIONS[state.font].family;
+    els.fontPreview.append(loading);
+    els.candidateStrip.innerHTML = "";
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const chosen = [];
+  for (const char of text) {
+    if (char === "\n") {
+      fragment.append(document.createElement("br"));
+      continue;
+    }
+    if (char === " ") {
+      const spacer = document.createElement("span");
+      spacer.className = "gooseGlyph spacer";
+      fragment.append(spacer);
+      continue;
+    }
+    const letter = state.allCaps ? char.toUpperCase() : char;
+    const ranked = candidates[letter];
+    if (!ranked || !ranked.length) {
+      const fallback = document.createElement("span");
+      fallback.className = "gooseGlyph missing";
+      fallback.textContent = char;
+      fragment.append(fallback);
+      continue;
+    }
+    const candidate = pickCandidate(ranked);
+    chosen.push({ letter, candidate });
+    fragment.append(renderGlyph(letter, candidate));
+  }
+  els.fontPreview.append(fragment);
+  renderCandidateStrip(chosen);
+}
+
+function pickCandidate(ranked) {
+  const readableIndex = state.readability >= 72 ? 0 : state.readability >= 45 ? 1 : 2;
+  return ranked[Math.min(readableIndex, ranked.length - 1)];
+}
+
+function renderGlyph(letter, candidate) {
+  const glyph = document.createElement("span");
+  glyph.className = "gooseGlyph";
+  glyph.title = `${letter}: ${candidate.goose_id}, score ${candidate.score}`;
+
+  const image = document.createElement("img");
+  image.alt = `${letter} goose candidate`;
+  image.src = toWebPath(candidateImagePath(candidate));
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.style.transform = candidate.flip_x ? "scaleX(-1)" : "";
+
+  const label = document.createElement("small");
+  label.textContent = letter;
+  glyph.append(image, label);
+  return glyph;
+}
+
+function renderCandidateStrip(chosen) {
+  els.candidateStrip.innerHTML = "";
+  const unique = [];
+  const seen = new Set();
+  for (const item of chosen) {
+    const key = `${item.letter}-${item.candidate.mask_path}-${item.candidate.flip_x}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+
+  for (const item of unique.slice(0, 10)) {
+    const card = document.createElement("article");
+    card.className = "candidateCard";
+    card.classList.toggle("silhouette", state.mode === "silhouette");
+    const image = document.createElement("img");
+    image.alt = `${item.letter} selected candidate`;
+    image.src = toWebPath(candidateImagePath(item.candidate));
+    image.style.transform = item.candidate.flip_x ? "scaleX(-1)" : "";
+    const text = document.createElement("span");
+    text.textContent = `${item.letter} ${item.candidate.score.toFixed(2)}`;
+    card.append(image, text);
+    els.candidateStrip.append(card);
+  }
+}
+
+function candidateImagePath(candidate) {
+  if (state.mode === "silhouette") {
+    return candidate.silhouette_path || candidate.mask_path || candidate.cutout_path;
+  }
+  return candidate.cutout_path || candidate.silhouette_path || candidate.mask_path;
+}
+
+function toWebPath(path) {
+  return `/${path}`.replace(/\/+/g, "/");
 }
 
 function setActiveStyle() {
@@ -132,10 +255,6 @@ function setActiveMode() {
   for (const button of els.modeGroup.querySelectorAll("button")) {
     button.classList.toggle("active", button.dataset.mode === state.mode);
   }
-}
-
-function styleSummary() {
-  return `${readabilityLabel()}, ${currentStyle().label.toLowerCase()}`;
 }
 
 function readabilityLabel() {
@@ -154,16 +273,18 @@ function buildGenerationRequest() {
       bold: state.bold,
       italic: state.italic,
     },
+    candidate_source: FONT_OPTIONS[state.font].candidatesUrl,
     non_font_dependent_controls: {
       readability: state.readability / 100,
       abstraction: (100 - state.readability) / 100,
+      gaussian_blur_px: state.blur,
       render_mode: state.mode,
       all_caps: state.allCaps,
     },
     expected_backend_pipeline: [
-      "extract feature similarity from selected font",
-      "read precomputed goose image parameters",
-      "score goose fit against font and non-font controls",
+      "load selected font candidate rankings",
+      "choose goose cutouts or silhouettes for requested text",
+      "compose glyph preview",
       "generate and return ttf font",
     ],
   };

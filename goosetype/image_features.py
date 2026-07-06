@@ -19,6 +19,7 @@ except ImportError:
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"}
 _REMBG_SESSIONS = {}
 _OWL_VIT_DETECTOR = None
+_SAM_MODELS = {}
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def build_foreground_mask(
     max_segmentation_side: int = 1600,
 ) -> Image.Image:
     backend = backend.lower()
-    if backend not in {"auto", "rembg", "grabcut", "heuristic"}:
+    if backend not in {"auto", "sam", "rembg", "grabcut", "heuristic"}:
         raise ValueError(f"Unknown segmentation backend: {backend}")
 
     errors = []
@@ -67,11 +68,34 @@ def build_foreground_mask(
     return build_heuristic_foreground_mask(image, threshold=threshold)
 
 
+def build_instance_mask(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int] | None = None,
+    backend: str = "auto",
+    threshold: float = 54.0,
+    rembg_model: str = "isnet-general-use",
+    sam_model: str = "facebook/sam-vit-base",
+    max_segmentation_side: int = 1600,
+) -> Image.Image:
+    backend = backend.lower()
+    if backend == "sam":
+        if bbox is None:
+            raise ValueError("SAM segmentation requires a box prompt.")
+        return build_sam_box_mask(image, bbox=bbox, model_name=sam_model, max_side=max_segmentation_side)
+    return build_foreground_mask(
+        image,
+        threshold=threshold,
+        backend=backend,
+        rembg_model=rembg_model,
+        max_segmentation_side=max_segmentation_side,
+    )
+
+
 def build_detector_guided_mask(
     image: Image.Image,
     detector_backend: str = "owlvit",
-    detection_queries: tuple[str, ...] = ("goose", "geese", "bird"),
-    detection_threshold: float = 0.12,
+    detection_queries: tuple[str, ...] = ("goose", "geese"),
+    detection_threshold: float = 0.25,
     segmentation_backend: str = "rembg",
     rembg_model: str = "isnet-general-use",
     max_segmentation_side: int = 1600,
@@ -104,8 +128,8 @@ def build_detector_guided_mask(
 def detect_goose_boxes(
     image: Image.Image,
     backend: str = "owlvit",
-    queries: tuple[str, ...] = ("goose", "geese", "bird"),
-    threshold: float = 0.12,
+    queries: tuple[str, ...] = ("goose", "geese"),
+    threshold: float = 0.25,
     max_side: int = 1600,
 ) -> list[Detection]:
     backend = backend.lower()
@@ -118,8 +142,8 @@ def detect_goose_boxes(
 
 def detect_goose_boxes_owlvit(
     image: Image.Image,
-    queries: tuple[str, ...] = ("goose", "geese", "bird"),
-    threshold: float = 0.12,
+    queries: tuple[str, ...] = ("goose", "geese"),
+    threshold: float = 0.25,
     max_side: int = 1600,
 ) -> list[Detection]:
     global _OWL_VIT_DETECTOR
@@ -188,6 +212,66 @@ def build_rembg_mask(image: Image.Image, model_name: str = "isnet-general-use", 
     if alpha.size != original_size:
         alpha = alpha.resize(original_size, Image.Resampling.LANCZOS)
     return clean_mask(alpha)
+
+
+def build_sam_box_mask(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int],
+    model_name: str = "facebook/sam-vit-base",
+    max_side: int = 1600,
+) -> Image.Image:
+    global _SAM_MODELS
+
+    try:
+        import torch
+        from transformers import SamModel, SamProcessor
+    except ImportError as error:
+        raise RuntimeError(
+            "SAM segmentation requires the optional ML dependencies: "
+            "python3 -m pip install -r requirements-ml.txt"
+        ) from error
+
+    source = image.convert("RGB")
+    prompt_box = clamp_bbox(bbox, source.size)
+    if max_side > 0 and max(source.size) > max_side:
+        resized = ImageOps.contain(source, (max_side, max_side), Image.Resampling.LANCZOS)
+        scale_x = resized.width / source.width
+        scale_y = resized.height / source.height
+        prompt_box = (
+            int(round(prompt_box[0] * scale_x)),
+            int(round(prompt_box[1] * scale_y)),
+            int(round(prompt_box[2] * scale_x)),
+            int(round(prompt_box[3] * scale_y)),
+        )
+        source = resized
+
+    cached = _SAM_MODELS.get(model_name)
+    if cached is None:
+        processor = SamProcessor.from_pretrained(model_name)
+        model = SamModel.from_pretrained(model_name)
+        model.eval()
+        cached = (processor, model)
+        _SAM_MODELS[model_name] = cached
+    processor, model = cached
+
+    inputs = processor(source, input_boxes=[[[list(prompt_box)]]], return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    original_sizes = inputs["original_sizes"]
+    reshaped_input_sizes = inputs["reshaped_input_sizes"]
+    masks = processor.image_processor.post_process_masks(
+        outputs.pred_masks.cpu(),
+        original_sizes.cpu(),
+        reshaped_input_sizes.cpu(),
+    )[0]
+    scores = outputs.iou_scores.cpu()[0, 0]
+    best_index = int(scores.argmax().item())
+    mask_tensor = masks[0, best_index]
+    mask = Image.fromarray((mask_tensor.numpy().astype("uint8") * 255), mode="L")
+    if mask.size != image.size:
+        mask = mask.resize(image.size, Image.Resampling.NEAREST)
+    return clean_mask(mask)
 
 
 def build_grabcut_mask(image: Image.Image) -> Image.Image:
@@ -428,6 +512,10 @@ def measure_mask(mask: Image.Image) -> dict:
     boldness = clamp(area / bbox_area)
     thinness = clamp(perimeter / max(area, 1) * 4.8)
     curvature = clamp((perimeter * perimeter) / (max(area, 1) * 42))
+    grid_3x3 = mask_grid_signature(mask)
+    projection_x, projection_y = mask_projection_signature(mask)
+    contour_grid_4x4 = mask_contour_grid_signature(mask)
+    shape_context = mask_shape_context_signature(mask)
 
     return {
         "area": area,
@@ -443,6 +531,12 @@ def measure_mask(mask: Image.Image) -> dict:
         "slant_score": round(clamp(math.degrees(angle) / 45, -1, 1), 4),
         "aspect_ratio": round(bbox_width / max(bbox_height, 1), 4),
         "fill_ratio": round(area / bbox_area, 4),
+        "grid_3x3": grid_3x3,
+        "grid_3x3_binary": [1 if value >= 0.16 else 0 for value in grid_3x3],
+        "projection_x": projection_x,
+        "projection_y": projection_y,
+        "contour_grid_4x4": contour_grid_4x4,
+        "shape_context": shape_context,
         "bbox": [bbox[0], bbox[1], bbox_width, bbox_height],
     }
 
@@ -551,6 +645,12 @@ def empty_features() -> dict:
         "slant_score": 0,
         "aspect_ratio": 1,
         "fill_ratio": 0,
+        "grid_3x3": [0.0] * 9,
+        "grid_3x3_binary": [0] * 9,
+        "projection_x": [0.0] * 16,
+        "projection_y": [0.0] * 16,
+        "contour_grid_4x4": [0.0] * 16,
+        "shape_context": [0.0] * 32,
         "bbox": [0, 0, 1, 1],
     }
 
@@ -607,6 +707,144 @@ def mask_iou(a: Image.Image, b: Image.Image, size: int = 160) -> dict:
         "iou": round(intersection / union, 4) if union else 0,
         "identical_pixel_ratio": round(identical / total, 4),
     }
+
+
+def aligned_mask_similarity(a: Image.Image, b: Image.Image, size: int = 160) -> dict:
+    canvas_a = normalize_mask_to_bbox(a, size=size)
+    canvas_b = normalize_mask_to_bbox(b, size=size)
+    pixels_a = canvas_a.load()
+    pixels_b = canvas_b.load()
+    intersection = union = identical_on = 0
+    area_a = area_b = 0
+    total = size * size
+    for y in range(size):
+        for x in range(size):
+            on_a = pixels_a[x, y] > 127
+            on_b = pixels_b[x, y] > 127
+            if on_a:
+                area_a += 1
+            if on_b:
+                area_b += 1
+            if on_a and on_b:
+                intersection += 1
+                identical_on += 1
+            if on_a or on_b:
+                union += 1
+    precision = intersection / area_a if area_a else 0
+    recall = intersection / area_b if area_b else 0
+    dice = (2 * intersection) / (area_a + area_b) if area_a + area_b else 0
+    return {
+        "aligned_iou": round(intersection / union, 4) if union else 0,
+        "aligned_dice": round(dice, 4),
+        "aligned_precision": round(precision, 4),
+        "aligned_recall": round(recall, 4),
+        "aligned_identical_on_ratio": round(identical_on / max(1, total), 4),
+    }
+
+
+def normalize_mask_to_bbox(mask: Image.Image, size: int = 160, margin: int = 8) -> Image.Image:
+    source = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    bbox = source.getbbox()
+    canvas = Image.new("L", (size, size), 0)
+    if not bbox:
+        return canvas
+
+    cropped = source.crop(bbox)
+    target_size = max(1, size - margin * 2)
+    normalized = cropped.resize((target_size, target_size), Image.Resampling.BILINEAR)
+    normalized = normalized.point(lambda value: 255 if value > 96 else 0)
+    canvas.paste(normalized, (margin, margin))
+    return canvas
+
+
+def mask_grid_signature(mask: Image.Image, rows: int = 3, cols: int = 3, size: int = 96) -> list[float]:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0)
+    pixels = normalized.load()
+    signature: list[float] = []
+    for row in range(rows):
+        y0 = row * size // rows
+        y1 = (row + 1) * size // rows
+        for col in range(cols):
+            x0 = col * size // cols
+            x1 = (col + 1) * size // cols
+            total = max(1, (x1 - x0) * (y1 - y0))
+            occupied = 0
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    if pixels[x, y] > 127:
+                        occupied += 1
+            signature.append(round(occupied / total, 4))
+    return signature
+
+
+def mask_projection_signature(mask: Image.Image, bins: int = 16, size: int = 96) -> tuple[list[float], list[float]]:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0)
+    pixels = normalized.load()
+    x_counts = [0] * bins
+    y_counts = [0] * bins
+    for y in range(size):
+        y_bin = min(bins - 1, y * bins // size)
+        for x in range(size):
+            if pixels[x, y] <= 127:
+                continue
+            x_bin = min(bins - 1, x * bins // size)
+            x_counts[x_bin] += 1
+            y_counts[y_bin] += 1
+    max_x = max(1, max(x_counts))
+    max_y = max(1, max(y_counts))
+    return (
+        [round(value / max_x, 4) for value in x_counts],
+        [round(value / max_y, 4) for value in y_counts],
+    )
+
+
+def mask_contour_grid_signature(mask: Image.Image, rows: int = 4, cols: int = 4, size: int = 96) -> list[float]:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0)
+    pixels = normalized.load()
+    counts = [0] * (rows * cols)
+    total_edges = 0
+    for y in range(size):
+        for x in range(size):
+            if pixels[x, y] <= 127 or not is_edge(pixels, x, y, size, size):
+                continue
+            row = min(rows - 1, y * rows // size)
+            col = min(cols - 1, x * cols // size)
+            counts[row * cols + col] += 1
+            total_edges += 1
+    total_edges = max(1, total_edges)
+    return [round(value / total_edges, 4) for value in counts]
+
+
+def mask_shape_context_signature(mask: Image.Image, radial_bins: int = 4, angular_bins: int = 8, size: int = 96) -> list[float]:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0)
+    pixels = normalized.load()
+    points: list[tuple[int, int]] = []
+    edge_points: list[tuple[int, int]] = []
+    for y in range(size):
+        for x in range(size):
+            if pixels[x, y] <= 127:
+                continue
+            points.append((x, y))
+            if is_edge(pixels, x, y, size, size):
+                edge_points.append((x, y))
+    if not points or not edge_points:
+        return [0.0] * (radial_bins * angular_bins)
+
+    cx = sum(x for x, _ in points) / len(points)
+    cy = sum(y for _, y in points) / len(points)
+    max_radius = max(1.0, max(math.hypot(x - cx, y - cy) for x, y in edge_points))
+    counts = [0] * (radial_bins * angular_bins)
+    for x, y in edge_points:
+        dx = x - cx
+        dy = y - cy
+        radius = math.hypot(dx, dy) / max_radius
+        radial_index = min(radial_bins - 1, int(radius * radial_bins))
+        angle = (math.atan2(dy, dx) + math.pi) / (math.pi * 2)
+        angular_index = min(angular_bins - 1, int(angle * angular_bins))
+        counts[radial_index * angular_bins + angular_index] += 1
+
+    total = max(1, sum(counts))
+    return [round(value / total, 4) for value in counts]
 
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:

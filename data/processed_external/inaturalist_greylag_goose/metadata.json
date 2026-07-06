@@ -1,0 +1,1804 @@
+[
+  {
+    "id": "goose_0001",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888319.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        300,
+        120,
+        861,
+        296
+      ],
+      "score": 0.3588,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5392,
+    "sam_support_coverage": 0.5764,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0001.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0001.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0001.png",
+    "bbox": [
+      285,
+      84,
+      623,
+      238
+    ],
+    "width": 623,
+    "height": 238,
+    "aspect_ratio": 3.1154,
+    "component_area": 53241,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1475,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0002",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888319.jpeg",
+    "source_component_index": 2,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        282,
+        359,
+        667,
+        548
+      ],
+      "score": 0.3431,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6818,
+    "sam_support_coverage": 0.6984,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0002.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0002.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0002.png",
+    "bbox": [
+      257,
+      329,
+      427,
+      241
+    ],
+    "width": 427,
+    "height": 241,
+    "aspect_ratio": 2.0054,
+    "component_area": 49613,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0981,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0003",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888329.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        317,
+        87,
+        1018,
+        681
+      ],
+      "score": 0.3026,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6362,
+    "sam_support_coverage": 0.2791,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0003.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0003.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0003.png",
+    "bbox": [
+      283,
+      60,
+      741,
+      623
+    ],
+    "width": 741,
+    "height": 623,
+    "aspect_ratio": 1.2024,
+    "component_area": 264913,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.6045,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0004",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888468.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        146,
+        200,
+        810,
+        444
+      ],
+      "score": 0.358,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5155,
+    "sam_support_coverage": 0.5344,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0004.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0004.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0004.png",
+    "bbox": [
+      112,
+      181,
+      715,
+      285
+    ],
+    "width": 715,
+    "height": 285,
+    "aspect_ratio": 2.8777,
+    "component_area": 83525,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2158,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0005",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888514.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        80,
+        166,
+        776,
+        529
+      ],
+      "score": 0.3,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4956,
+    "sam_support_coverage": 0.5375,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0005.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0005.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0005.png",
+    "bbox": [
+      55,
+      126,
+      753,
+      438
+    ],
+    "width": 753,
+    "height": 438,
+    "aspect_ratio": 1.8246,
+    "component_area": 125202,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.3807,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0006",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888564.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        220,
+        214,
+        744,
+        550
+      ],
+      "score": 0.2785,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6513,
+    "sam_support_coverage": 0.8477,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0006.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0006.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0006.png",
+    "bbox": [
+      193,
+      191,
+      572,
+      375
+    ],
+    "width": 572,
+    "height": 375,
+    "aspect_ratio": 1.6176,
+    "component_area": 114662,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2354,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0007",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888776.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        250,
+        130,
+        667,
+        489
+      ],
+      "score": 0.339,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5167,
+    "sam_support_coverage": 0.6914,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0007.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0007.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0007.png",
+    "bbox": [
+      232,
+      104,
+      460,
+      427
+    ],
+    "width": 460,
+    "height": 427,
+    "aspect_ratio": 1.0889,
+    "component_area": 77356,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2143,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0008",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_356888805.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        296,
+        0,
+        1024,
+        623
+      ],
+      "score": 0.3633,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6915,
+    "sam_support_coverage": 0.1685,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0008.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0008.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0008.png",
+    "bbox": [
+      284,
+      0,
+      740,
+      648
+    ],
+    "width": 740,
+    "height": 648,
+    "aspect_ratio": 1.1484,
+    "component_area": 313637,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.6312,
+    "border_contact_ratio": 0.5,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0009",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714582.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        127,
+        145,
+        916,
+        528
+      ],
+      "score": 0.2799,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.682,
+    "sam_support_coverage": 0.8694,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0009.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0009.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0009.png",
+    "bbox": [
+      95,
+      121,
+      849,
+      439
+    ],
+    "width": 849,
+    "height": 439,
+    "aspect_ratio": 2.0705,
+    "component_area": 206097,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.4343,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0010",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714633.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        0,
+        88,
+        751,
+        593
+      ],
+      "score": 0.3002,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6696,
+    "sam_support_coverage": 0.2201,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0010.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0010.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0010.png",
+    "bbox": [
+      0,
+      69,
+      771,
+      537
+    ],
+    "width": 771,
+    "height": 537,
+    "aspect_ratio": 1.5447,
+    "component_area": 253931,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.511,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0011",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714636.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        295,
+        89,
+        693,
+        233
+      ],
+      "score": 0.3513,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5396,
+    "sam_support_coverage": 0.3793,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0011.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0011.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0011.png",
+    "bbox": [
+      317,
+      77,
+      395,
+      179
+    ],
+    "width": 395,
+    "height": 179,
+    "aspect_ratio": 2.7561,
+    "component_area": 30925,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0596,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0012",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714636.jpg",
+    "source_component_index": 2,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        255,
+        170,
+        736,
+        379
+      ],
+      "score": 0.2848,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4684,
+    "sam_support_coverage": 0.1313,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0012.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0012.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0012.png",
+    "bbox": [
+      248,
+      165,
+      470,
+      239
+    ],
+    "width": 470,
+    "height": 239,
+    "aspect_ratio": 2.2623,
+    "component_area": 47089,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1083,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0013",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714636.jpg",
+    "source_component_index": 3,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        306,
+        283,
+        758,
+        389
+      ],
+      "score": 0.2683,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.2765,
+    "sam_support_coverage": 0.3239,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0013.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0013.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0013.png",
+    "bbox": [
+      374,
+      280,
+      372,
+      125
+    ],
+    "width": 372,
+    "height": 125,
+    "aspect_ratio": 4.5797,
+    "component_area": 13246,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0312,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0014",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_202109599_423714636.jpg",
+    "source_component_index": 4,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        338,
+        380,
+        893,
+        585
+      ],
+      "score": 0.2579,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5209,
+    "sam_support_coverage": 0.5429,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0014.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0014.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0014.png",
+    "bbox": [
+      305,
+      345,
+      615,
+      265
+    ],
+    "width": 615,
+    "height": 265,
+    "aspect_ratio": 2.6746,
+    "component_area": 59262,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.167,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0015",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_21203884_32774133.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        391,
+        328,
+        909,
+        579
+      ],
+      "score": 0.25,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4608,
+    "sam_support_coverage": 0.5837,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0015.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0015.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0015.png",
+    "bbox": [
+      395,
+      299,
+      524,
+      306
+    ],
+    "width": 524,
+    "height": 306,
+    "aspect_ratio": 1.872,
+    "component_area": 59907,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1488,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0016",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_2629861_2946643.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        162,
+        131,
+        1016,
+        635
+      ],
+      "score": 0.3579,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5938,
+    "sam_support_coverage": 0.3211,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0016.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0016.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0016.png",
+    "bbox": [
+      156,
+      111,
+      868,
+      554
+    ],
+    "width": 868,
+    "height": 554,
+    "aspect_ratio": 1.6867,
+    "component_area": 255582,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.5981,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0017",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_54206748_86241508.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        280,
+        64,
+        554,
+        337
+      ],
+      "score": 0.2732,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6496,
+    "sam_support_coverage": 0.171,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0017.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0017.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0017.png",
+    "bbox": [
+      250,
+      42,
+      329,
+      327
+    ],
+    "width": 329,
+    "height": 327,
+    "aspect_ratio": 1.0074,
+    "component_area": 48595,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0941,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0018",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_71710579_116793541.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        232,
+        122,
+        817,
+        410
+      ],
+      "score": 0.3769,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.3534,
+    "sam_support_coverage": 0.3685,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0018.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0018.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0018.png",
+    "bbox": [
+      207,
+      94,
+      633,
+      327
+    ],
+    "width": 633,
+    "height": 327,
+    "aspect_ratio": 2.1292,
+    "component_area": 59546,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2236,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0019",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_71710579_116793572.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        238,
+        182,
+        1024,
+        526
+      ],
+      "score": 0.2876,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4915,
+    "sam_support_coverage": 0.5069,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0019.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0019.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0019.png",
+    "bbox": [
+      196,
+      147,
+      828,
+      399
+    ],
+    "width": 828,
+    "height": 399,
+    "aspect_ratio": 2.3178,
+    "component_area": 132902,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.3899,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0020",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_71710579_116793604.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        164,
+        68,
+        814,
+        268
+      ],
+      "score": 0.2909,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5849,
+    "sam_support_coverage": 0.5999,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0020.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0020.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0020.png",
+    "bbox": [
+      136,
+      42,
+      722,
+      245
+    ],
+    "width": 722,
+    "height": 245,
+    "aspect_ratio": 3.5238,
+    "component_area": 76038,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.18,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0021",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_71710579_116793637.jpeg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        275,
+        3,
+        827,
+        293
+      ],
+      "score": 0.2979,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4856,
+    "sam_support_coverage": 0.4995,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0021.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0021.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0021.png",
+    "bbox": [
+      222,
+      0,
+      656,
+      310
+    ],
+    "width": 656,
+    "height": 310,
+    "aspect_ratio": 2.1978,
+    "component_area": 77727,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2342,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0022",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908800.jpg",
+    "source_component_index": 3,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        191,
+        140,
+        479,
+        414
+      ],
+      "score": 0.3198,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6255,
+    "sam_support_coverage": 0.6094,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0022.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0022.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0022.png",
+    "bbox": [
+      154,
+      113,
+      344,
+      319
+    ],
+    "width": 344,
+    "height": 319,
+    "aspect_ratio": 1.0951,
+    "component_area": 49361,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1249,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0023",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908800.jpg",
+    "source_component_index": 4,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        649,
+        195,
+        895,
+        531
+      ],
+      "score": 0.2939,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5633,
+    "sam_support_coverage": 0.5954,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0023.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0023.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0023.png",
+    "bbox": [
+      626,
+      168,
+      294,
+      389
+    ],
+    "width": 294,
+    "height": 389,
+    "aspect_ratio": 0.7147,
+    "component_area": 46556,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1307,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0024",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908815.jpg",
+    "source_component_index": 4,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        140,
+        130,
+        455,
+        399
+      ],
+      "score": 0.3318,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5174,
+    "sam_support_coverage": 0.5146,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0024.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0024.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0024.png",
+    "bbox": [
+      130,
+      106,
+      349,
+      282
+    ],
+    "width": 349,
+    "height": 282,
+    "aspect_ratio": 1.2965,
+    "component_area": 43841,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1111,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0025",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908815.jpg",
+    "source_component_index": 5,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        656,
+        189,
+        897,
+        516
+      ],
+      "score": 0.2842,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5738,
+    "sam_support_coverage": 0.6016,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0025.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0025.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0025.png",
+    "bbox": [
+      631,
+      161,
+      291,
+      387
+    ],
+    "width": 291,
+    "height": 387,
+    "aspect_ratio": 0.71,
+    "component_area": 45222,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1305,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0026",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908841.jpg",
+    "source_component_index": 3,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        625,
+        183,
+        880,
+        521
+      ],
+      "score": 0.3608,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5439,
+    "sam_support_coverage": 0.5714,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0026.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0026.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0026.png",
+    "bbox": [
+      610,
+      157,
+      294,
+      380
+    ],
+    "width": 294,
+    "height": 380,
+    "aspect_ratio": 0.7346,
+    "component_area": 46875,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1268,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0027",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908841.jpg",
+    "source_component_index": 5,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        259,
+        137,
+        529,
+        404
+      ],
+      "score": 0.3236,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6516,
+    "sam_support_coverage": 0.6074,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0027.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0027.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0027.png",
+    "bbox": [
+      216,
+      111,
+      333,
+      314
+    ],
+    "width": 333,
+    "height": 314,
+    "aspect_ratio": 1.0736,
+    "component_area": 46976,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1175,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0028",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908855.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        0,
+        20,
+        1016,
+        581
+      ],
+      "score": 0.3999,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5124,
+    "sam_support_coverage": 0.2005,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0028.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0028.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0028.png",
+    "bbox": [
+      0,
+      0,
+      1024,
+      582
+    ],
+    "width": 1024,
+    "height": 582,
+    "aspect_ratio": 1.8318,
+    "component_area": 292046,
+    "goose_candidate_score": 0.55,
+    "goose_candidate_reasons": [
+      "too_large_for_single_goose"
+    ],
+    "bbox_area_ratio": 0.9605,
+    "border_contact_ratio": 0.5,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0029",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908881.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        749,
+        283,
+        880,
+        375
+      ],
+      "score": 0.3559,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5396,
+    "sam_support_coverage": 0.3202,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0029.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0029.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0029.png",
+    "bbox": [
+      725,
+      254,
+      188,
+      144
+    ],
+    "width": 188,
+    "height": 144,
+    "aspect_ratio": 1.5,
+    "component_area": 6503,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0186,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0030",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908881.jpg",
+    "source_component_index": 2,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        488,
+        280,
+        618,
+        379
+      ],
+      "score": 0.349,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4669,
+    "sam_support_coverage": 0.147,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0030.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0030.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0030.png",
+    "bbox": [
+      468,
+      261,
+      182,
+      135
+    ],
+    "width": 182,
+    "height": 135,
+    "aspect_ratio": 1.5949,
+    "component_area": 6009,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.0159,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0031",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908913.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        14,
+        119,
+        842,
+        474
+      ],
+      "score": 0.3886,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.612,
+    "sam_support_coverage": 0.608,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0031.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0031.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0031.png",
+    "bbox": [
+      0,
+      91,
+      870,
+      393
+    ],
+    "width": 870,
+    "height": 393,
+    "aspect_ratio": 2.4362,
+    "component_area": 179900,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.4459,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0032",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908939.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        6,
+        38,
+        790,
+        586
+      ],
+      "score": 0.5017,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5624,
+    "sam_support_coverage": 0.5901,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0032.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0032.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0032.png",
+    "bbox": [
+      0,
+      11,
+      823,
+      581
+    ],
+    "width": 823,
+    "height": 581,
+    "aspect_ratio": 1.4722,
+    "component_area": 241613,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.7082,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0033",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908961.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        3,
+        39,
+        732,
+        579
+      ],
+      "score": 0.4402,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5971,
+    "sam_support_coverage": 0.6214,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0033.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0033.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0033.png",
+    "bbox": [
+      0,
+      9,
+      754,
+      580
+    ],
+    "width": 754,
+    "height": 580,
+    "aspect_ratio": 1.3855,
+    "component_area": 235066,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.6213,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0034",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908978.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        0,
+        9,
+        720,
+        581
+      ],
+      "score": 0.4749,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.7583,
+    "sam_support_coverage": 0.3687,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0034.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0034.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0034.png",
+    "bbox": [
+      0,
+      0,
+      753,
+      584
+    ],
+    "width": 753,
+    "height": 584,
+    "aspect_ratio": 1.3087,
+    "component_area": 312314,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.6206,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0035",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908989.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        378,
+        143,
+        647,
+        440
+      ],
+      "score": 0.3983,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6589,
+    "sam_support_coverage": 0.6242,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0035.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0035.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0035.png",
+    "bbox": [
+      362,
+      117,
+      337,
+      312
+    ],
+    "width": 337,
+    "height": 312,
+    "aspect_ratio": 1.0977,
+    "component_area": 52641,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1207,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0036",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_75718382_123908989.jpg",
+    "source_component_index": 2,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        603,
+        193,
+        844,
+        513
+      ],
+      "score": 0.3647,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5612,
+    "sam_support_coverage": 0.6638,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0036.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0036.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0036.png",
+    "bbox": [
+      585,
+      166,
+      286,
+      369
+    ],
+    "width": 286,
+    "height": 369,
+    "aspect_ratio": 0.7348,
+    "component_area": 43281,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1208,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0037",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_9600979_13096815.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        19,
+        115,
+        596,
+        1016
+      ],
+      "score": 0.4104,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4308,
+    "sam_support_coverage": 0.4359,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0037.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0037.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0037.png",
+    "bbox": [
+      4,
+      90,
+      620,
+      934
+    ],
+    "width": 620,
+    "height": 934,
+    "aspect_ratio": 0.6225,
+    "component_area": 223961,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.7306,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0038",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_9600979_13096818.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        3,
+        332,
+        435,
+        683
+      ],
+      "score": 0.2531,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.6391,
+    "sam_support_coverage": 0.6717,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0038.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0038.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0038.png",
+    "bbox": [
+      0,
+      271,
+      478,
+      412
+    ],
+    "width": 478,
+    "height": 412,
+    "aspect_ratio": 1.1719,
+    "component_area": 96908,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2471,
+    "border_contact_ratio": 0.5,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0039",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_9600979_13096821.jpg",
+    "source_component_index": 2,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        486,
+        206,
+        847,
+        683
+      ],
+      "score": 0.2815,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.5281,
+    "sam_support_coverage": 0.6441,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0039.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0039.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0039.png",
+    "bbox": [
+      459,
+      171,
+      427,
+      512
+    ],
+    "width": 427,
+    "height": 512,
+    "aspect_ratio": 0.7665,
+    "component_area": 90944,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.2567,
+    "border_contact_ratio": 0.25,
+    "is_probable_goose": true
+  },
+  {
+    "id": "goose_0040",
+    "source_image": "data/external_sources/inaturalist_greylag_goose/photos/inat_9600979_13096829.jpg",
+    "source_component_index": 1,
+    "extraction_kind": "detector_instance",
+    "segmentation_backend": "sam",
+    "detector_backend": "owlvit",
+    "detection_queries": [
+      "goose",
+      "geese"
+    ],
+    "detection": {
+      "bbox": [
+        449,
+        82,
+        799,
+        389
+      ],
+      "score": 0.2982,
+      "label": "goose"
+    },
+    "detector_mask_coverage": 0.4962,
+    "sam_support_coverage": 0.5668,
+    "rembg_model": null,
+    "sam_model": "facebook/sam-vit-base",
+    "overlap_note": "Detector-guided extraction preserves substantial disconnected foreground inside one goose box so visible body parts are kept together when the detector sees one animal.",
+    "cutout_path": "data/processed_external/inaturalist_greylag_goose/cutouts/goose_0040.png",
+    "mask_path": "data/processed_external/inaturalist_greylag_goose/masks/goose_0040.png",
+    "silhouette_path": "data/processed_external/inaturalist_greylag_goose/silhouettes/goose_0040.png",
+    "bbox": [
+      419,
+      48,
+      412,
+      393
+    ],
+    "width": 412,
+    "height": 393,
+    "aspect_ratio": 1.0564,
+    "component_area": 53320,
+    "goose_candidate_score": 1.0,
+    "goose_candidate_reasons": [],
+    "bbox_area_ratio": 0.1715,
+    "border_contact_ratio": 0.0,
+    "is_probable_goose": true
+  }
+]

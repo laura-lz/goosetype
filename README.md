@@ -37,19 +37,20 @@ python3 scripts/extract_geese.py \
   --input goose_photos \
   --output data/processed \
   --detector-backend owlvit \
-  --segmentation-backend rembg \
+  --segmentation-backend sam \
   --detection-query goose \
   --detection-query geese \
-  --detection-threshold 0.12 \
+  --detection-threshold 0.25 \
   --keep-rejected
 ```
 
-`--detector-backend owlvit` uses the public `google/owlvit-base-patch32` model through Hugging Face Transformers. It does not require paid API tokens, but it does download model weights the first time it runs. The detector proposes goose-like boxes first, then the segmentation backend is applied inside those boxes. That keeps sticks, bushes, reeds, water texture, and other non-goose foreground from becoming candidates in the first place. If the optional detector dependencies are not installed, the script prints a fallback message and continues with the regular segmentation path.
+`--detector-backend owlvit` uses the public `google/owlvit-base-patch32` model through Hugging Face Transformers. `--segmentation-backend sam` uses `facebook/sam-vit-base` as a box-prompted mask model. Neither requires paid API tokens, but both download model weights the first time they run. OWL-ViT proposes goose-like boxes first, then SAM segments each detected goose box. If SAM is too slow on a machine, `--segmentation-backend rembg` remains a faster fallback.
 
 Useful extraction options:
 
 ```bash
 python3 scripts/extract_geese.py --segmentation-backend rembg --rembg-model isnet-general-use
+python3 scripts/extract_geese.py --detector-backend owlvit --segmentation-backend sam
 python3 scripts/extract_geese.py --detector-backend owlvit --segmentation-backend rembg
 python3 scripts/extract_geese.py --segmentation-backend grabcut
 python3 scripts/extract_geese.py --segmentation-backend heuristic
@@ -72,6 +73,24 @@ Public goose datasets can help, but they should be used as a curated reference l
 - Roboflow Universe projects, if the dataset license allows reuse and the labels are actually goose-specific
 
 The practical workflow is to keep external images in a separate folder such as `data/external_sources/`, store license/source metadata beside each image, run the same extraction pipeline into a separate processed folder, then merge only the good cutouts into the glyph candidate pool. This avoids mixing unknown-license images into exported fonts and keeps low-quality or mislabeled bird photos from dominating the letter matching.
+
+The first supported external downloader uses iNaturalist's public API:
+
+```bash
+python3 scripts/fetch_inaturalist_geese.py \
+  --taxon "Branta canadensis" \
+  --limit 80 \
+  --output data/external_sources/inaturalist_canada_goose
+
+python3 scripts/extract_geese.py \
+  --input data/external_sources/inaturalist_canada_goose/photos \
+  --output data/processed_external/inaturalist_canada_goose \
+  --detector-backend owlvit \
+  --segmentation-backend sam \
+  --keep-rejected
+```
+
+The downloader keeps `metadata.json` beside the downloaded photos with source URLs, observation IDs, photo IDs, license codes, and attribution strings. The default license filter keeps `cc0`, `cc-by`, and `cc-by-sa` photo records.
 
 For letter semblance, public datasets are more valuable for breadth than for accuracy by themselves. More geese gives the optimizer more silhouettes that happen to resemble `A`, `S`, `R`, italic strokes, bowl shapes, etc. The ranking should still compare against the selected font targets using features first, then mask similarity on the shortlist. In other words: use public data to increase the search space, not to replace the font-similarity scoring.
 

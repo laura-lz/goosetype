@@ -15,13 +15,15 @@ except ImportError as error:
 
 from goosetype.image_features import (
     IMAGE_SUFFIXES,
-    build_detector_guided_mask,
     build_foreground_mask,
+    build_instance_mask,
     component_mask,
     connected_components,
     crop_with_padding,
     cutout_from_mask,
+    detect_goose_boxes,
     measure_mask,
+    pad_bbox,
     score_goose_candidate,
     silhouette_from_mask,
 )
@@ -51,7 +53,7 @@ def main() -> None:
     parser.add_argument(
         "--detection-threshold",
         type=float,
-        default=0.12,
+        default=0.25,
         help="Minimum detector confidence for keeping a proposed goose box.",
     )
     parser.add_argument(
@@ -61,8 +63,20 @@ def main() -> None:
         help="Padding around detector boxes before per-box segmentation, as a ratio of box size.",
     )
     parser.add_argument(
+        "--min-detector-mask-coverage",
+        type=float,
+        default=0.08,
+        help="Minimum segmented foreground area relative to its detector box.",
+    )
+    parser.add_argument(
+        "--min-sam-support-coverage",
+        type=float,
+        default=0.08,
+        help="In SAM mode, require rembg to see this much foreground in the same detector box.",
+    )
+    parser.add_argument(
         "--segmentation-backend",
-        choices=("auto", "rembg", "grabcut", "heuristic"),
+        choices=("auto", "sam", "rembg", "grabcut", "heuristic"),
         default="auto",
         help="Foreground extraction backend. auto tries rembg, then GrabCut, then heuristic.",
     )
@@ -70,6 +84,11 @@ def main() -> None:
         "--rembg-model",
         default="isnet-general-use",
         help="rembg model/session name when --segmentation-backend uses rembg.",
+    )
+    parser.add_argument(
+        "--sam-model",
+        default="facebook/sam-vit-base",
+        help="Hugging Face SAM model when --segmentation-backend sam is used.",
     )
     parser.add_argument(
         "--max-segmentation-side",
@@ -116,30 +135,29 @@ def main() -> None:
             continue
         print(f"processing: {image_path.name}")
         image = Image.open(image_path).convert("RGBA")
-        detection_queries = tuple(args.detection_query or ["goose", "geese", "bird"])
+        detection_queries = tuple(args.detection_query or ["goose", "geese"])
         detections = []
         if args.detector_backend != "none":
             try:
-                scene_mask, detections = build_detector_guided_mask(
+                detections = detect_goose_boxes(
                     image,
-                    detector_backend=args.detector_backend,
-                    detection_queries=detection_queries,
-                    detection_threshold=args.detection_threshold,
-                    segmentation_backend=args.segmentation_backend,
-                    rembg_model=args.rembg_model,
-                    max_segmentation_side=args.max_segmentation_side,
-                    box_padding_ratio=args.detector_box_padding,
+                    backend=args.detector_backend,
+                    queries=detection_queries,
+                    threshold=args.detection_threshold,
+                    max_side=args.max_segmentation_side,
                 )
                 print(f"detector: {len(detections)} goose-like boxes")
             except Exception as error:
                 print(f"detector fallback: {error}")
+                fallback_backend = "rembg" if args.segmentation_backend == "sam" else args.segmentation_backend
                 scene_mask = build_foreground_mask(
                     image,
                     threshold=args.threshold,
-                    backend=args.segmentation_backend,
+                    backend=fallback_backend,
                     rembg_model=args.rembg_model,
                     max_segmentation_side=args.max_segmentation_side,
                 )
+                detections = []
         else:
             scene_mask = build_foreground_mask(
                 image,
@@ -149,7 +167,32 @@ def main() -> None:
                 max_segmentation_side=args.max_segmentation_side,
             )
         if args.include_scene_mask:
-            scene_mask.save(debug_dir / f"{image_path.stem}_mask.png")
+            if args.detector_backend == "none" or not detections:
+                scene_mask.save(debug_dir / f"{image_path.stem}_mask.png")
+
+        if args.detector_backend != "none" and detections:
+            goose_index = extract_detector_instances(
+                image=image,
+                image_path=image_path,
+                detections=detections,
+                detection_queries=detection_queries,
+                args=args,
+                metadata=metadata,
+                goose_index=goose_index,
+                masks_dir=masks_dir,
+                cutouts_dir=cutouts_dir,
+                silhouettes_dir=silhouettes_dir,
+                rejected_dir=rejected_dir,
+                debug_dir=debug_dir,
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+            continue
+
+        if args.detector_backend != "none":
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+            continue
 
         components = connected_components(scene_mask, min_area=args.min_area)
         if not components:
@@ -223,6 +266,173 @@ def main() -> None:
         output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     print(f"Wrote {len(metadata)} goose instances to {output_path}")
+
+
+def extract_detector_instances(
+    image: Image.Image,
+    image_path: Path,
+    detections,
+    detection_queries: tuple[str, ...],
+    args,
+    metadata: list[dict],
+    goose_index: int,
+    masks_dir: Path,
+    cutouts_dir: Path,
+    silhouettes_dir: Path,
+    rejected_dir: Path,
+    debug_dir: Path,
+) -> int:
+    for detection_index, detection in enumerate(detections, start=1):
+        crop_box = pad_bbox(detection.bbox, image.size, args.detector_box_padding)
+        crop = image.crop(crop_box)
+        local_detection_box = (
+            max(0, detection.bbox[0] - crop_box[0]),
+            max(0, detection.bbox[1] - crop_box[1]),
+            min(crop.width, detection.bbox[2] - crop_box[0]),
+            min(crop.height, detection.bbox[3] - crop_box[1]),
+        )
+        crop_mask = build_instance_mask(
+            crop,
+            bbox=local_detection_box,
+            threshold=args.threshold,
+            backend=args.segmentation_backend,
+            rembg_model=args.rembg_model,
+            sam_model=args.sam_model,
+            max_segmentation_side=args.max_segmentation_side,
+        )
+        sam_support_coverage = None
+        if args.segmentation_backend == "sam":
+            support_mask = build_instance_mask(
+                crop,
+                backend="rembg",
+                threshold=args.threshold,
+                rembg_model=args.rembg_model,
+                max_segmentation_side=args.max_segmentation_side,
+            )
+            detection_area = max(1, (detection.bbox[2] - detection.bbox[0]) * (detection.bbox[3] - detection.bbox[1]))
+            sam_support_coverage = mask_area(support_mask) / detection_area
+            if sam_support_coverage < args.min_sam_support_coverage:
+                if args.keep_rejected:
+                    rejected_id = f"{image_path.stem}_detection_{detection_index:02d}"
+                    cutout_from_mask(crop, crop_mask).save(rejected_dir / f"{rejected_id}.png")
+                print(
+                    f"skip: {image_path.name} detection={detection_index} "
+                    f"score={detection.score:.2f} sam_support={sam_support_coverage:.3f} "
+                    f"reasons=low_sam_support_coverage"
+                )
+                continue
+        if args.include_scene_mask:
+            crop_mask.save(debug_dir / f"{image_path.stem}_detector_{detection_index:02d}_mask.png")
+
+        kept_mask, kept_area = detector_instance_mask(crop_mask, min_area=args.min_area)
+        if not kept_mask.getbbox():
+            print(f"skip: {image_path.name} detection={detection_index} score={detection.score:.2f} reasons=empty_mask")
+            continue
+
+        detection_area = max(1, (detection.bbox[2] - detection.bbox[0]) * (detection.bbox[3] - detection.bbox[1]))
+        coverage = kept_area / detection_area
+        if coverage < args.min_detector_mask_coverage:
+            if args.keep_rejected:
+                rejected_id = f"{image_path.stem}_detection_{detection_index:02d}"
+                cutout_from_mask(crop, kept_mask).save(rejected_dir / f"{rejected_id}.png")
+            print(
+                f"skip: {image_path.name} detection={detection_index} "
+                f"score={detection.score:.2f} coverage={coverage:.3f} reasons=low_detector_mask_coverage"
+            )
+            continue
+
+        local_bbox = kept_mask.getbbox()
+        assert local_bbox is not None
+        global_bbox = (
+            crop_box[0] + local_bbox[0],
+            crop_box[1] + local_bbox[1],
+            crop_box[0] + local_bbox[2],
+            crop_box[1] + local_bbox[3],
+        )
+        full_mask = Image.new("L", image.size, 0)
+        full_mask.paste(kept_mask, crop_box)
+        cropped_image, cropped_mask, padded_bbox = crop_with_padding(image, full_mask, global_bbox, args.padding)
+        features = measure_mask(cropped_mask)
+        candidate = score_goose_candidate(features, image.size, bbox=global_bbox)
+        if candidate["goose_candidate_score"] < args.min_goose_score:
+            if args.keep_rejected:
+                rejected_id = f"{image_path.stem}_detection_{detection_index:02d}"
+                cutout_from_mask(cropped_image, cropped_mask).save(rejected_dir / f"{rejected_id}.png")
+            print(
+                f"skip: {image_path.name} detection={detection_index} "
+                f"score={candidate['goose_candidate_score']:.2f} "
+                f"reasons={','.join(candidate['goose_candidate_reasons']) or 'low_score'}"
+            )
+            continue
+
+        goose_id = f"goose_{goose_index:04d}"
+        cutout = cutout_from_mask(cropped_image, cropped_mask)
+        silhouette = silhouette_from_mask(cropped_mask)
+
+        mask_path = masks_dir / f"{goose_id}.png"
+        cutout_path = cutouts_dir / f"{goose_id}.png"
+        silhouette_path = silhouettes_dir / f"{goose_id}.png"
+        cropped_mask.save(mask_path)
+        cutout.save(cutout_path)
+        silhouette.save(silhouette_path)
+
+        x0, y0, x1, y1 = padded_bbox
+        metadata.append(
+            {
+                "id": goose_id,
+                "source_image": str(image_path),
+                "source_component_index": detection_index,
+                "extraction_kind": "detector_instance",
+                "segmentation_backend": args.segmentation_backend,
+                "detector_backend": args.detector_backend,
+                "detection_queries": list(detection_queries),
+                "detection": {"bbox": list(detection.bbox), "score": detection.score, "label": detection.label},
+                "detector_mask_coverage": round(coverage, 4),
+                "sam_support_coverage": round(sam_support_coverage, 4) if sam_support_coverage is not None else None,
+                "rembg_model": args.rembg_model if args.segmentation_backend in {"auto", "rembg"} else None,
+                "sam_model": args.sam_model if args.segmentation_backend == "sam" else None,
+                "overlap_note": (
+                    "Detector-guided extraction preserves substantial disconnected foreground inside one "
+                    "goose box so visible body parts are kept together when the detector sees one animal."
+                ),
+                "cutout_path": str(cutout_path),
+                "mask_path": str(mask_path),
+                "silhouette_path": str(silhouette_path),
+                "bbox": [x0, y0, x1 - x0, y1 - y0],
+                "width": cropped_image.width,
+                "height": cropped_image.height,
+                "aspect_ratio": features["aspect_ratio"],
+                "component_area": kept_area,
+                **candidate,
+            }
+        )
+        print(
+            f"{goose_id}: {image_path.name} detection={detection_index} "
+            f"detector_score={detection.score:.2f} coverage={coverage:.2f} bbox={metadata[-1]['bbox']}"
+        )
+        goose_index += 1
+    return goose_index
+
+
+def detector_instance_mask(mask: Image.Image, min_area: int) -> tuple[Image.Image, int]:
+    components = connected_components(mask, min_area=max(80, min_area // 8))
+    if not components:
+        return mask, sum(1 for value in mask.getdata() if value > 127)
+
+    largest_area = components[0].area
+    kept = Image.new("L", mask.size, 0)
+    kept_area = 0
+    for component in components:
+        if component.area < min_area and component.area < largest_area * 0.08:
+            continue
+        part = component_mask(mask, component.bbox)
+        kept = Image.composite(Image.new("L", mask.size, 255), kept, part)
+        kept_area += component.area
+    return kept, kept_area
+
+
+def mask_area(mask: Image.Image) -> int:
+    return sum(1 for value in mask.convert("L").getdata() if value > 127)
 
 
 def next_goose_index(metadata: list[dict]) -> int:

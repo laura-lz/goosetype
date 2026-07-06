@@ -16,7 +16,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rasterize a reference font and compute per-letter feature targets.")
     parser.add_argument("--font", default=None, help="Path to a .ttf/.otf font. If omitted, a system sans fallback is used.")
     parser.add_argument("--name", default="reference", help="Name to store in the generated metadata.")
-    parser.add_argument("--letters", default=string.ascii_uppercase, help="Letters to analyze.")
+    parser.add_argument("--letters", default=string.ascii_uppercase + string.ascii_lowercase, help="Letters to analyze.")
     parser.add_argument("--size", type=int, default=220, help="Raster size for each glyph target.")
     parser.add_argument("--output", default="data/processed/font_targets/reference.json")
     parser.add_argument("--mask-dir", default="data/processed/font_targets/masks")
@@ -28,11 +28,16 @@ def main() -> None:
     mask_dir.mkdir(parents=True, exist_ok=True)
 
     targets = []
-    for letter in args.letters.upper():
+    seen = set()
+    for letter in args.letters:
         if not letter.isalpha():
             continue
+        if letter in seen:
+            continue
+        seen.add(letter)
         mask = render_glyph_mask(letter, args.font, size=args.size)
-        mask_path = mask_dir / f"{args.name}_{letter}.png"
+        glyph_id = f"u{ord(letter):04x}"
+        mask_path = mask_dir / f"{args.name}_{glyph_id}.png"
         mask.save(mask_path)
         features = measure_mask(mask)
         targets.append(

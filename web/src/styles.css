@@ -233,11 +233,7 @@ textarea {
 
 .fontDisplayBox {
   align-items: center;
-  background:
-    linear-gradient(90deg, rgba(23, 27, 31, 0.05) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(23, 27, 31, 0.05) 1px, transparent 1px),
-    #fbfaf6;
-  background-size: 32px 32px;
+  background: transparent;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
@@ -247,27 +243,120 @@ textarea {
 }
 
 .fontPreview {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(6px, 1.3vw, 16px);
+  justify-content: center;
+  line-height: 1;
+  margin: 0;
+  min-height: 220px;
+  width: 100%;
+}
+
+.fontPreviewFallback {
   color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
   font-size: clamp(48px, 11vw, 148px);
   font-weight: 700;
   line-height: 0.92;
-  margin: 0;
+  margin: auto;
   overflow-wrap: anywhere;
-  text-wrap: balance;
+  text-align: center;
 }
 
-.fontPreview.precise {
-  text-shadow: 1px 0 rgba(54, 95, 143, 0.15);
+.gooseGlyph {
+  align-items: center;
+  display: grid;
+  grid-template-rows: minmax(84px, 1fr) 16px;
+  height: clamp(104px, 13vw, 168px);
+  justify-items: center;
+  min-width: clamp(58px, 8vw, 112px);
+  position: relative;
 }
 
-.fontPreview.abstract {
-  filter: contrast(1.12);
-  transform: rotate(-1deg);
+.gooseGlyph img {
+  display: block;
+  filter: blur(var(--goose-blur, 0));
+  max-height: calc(100% - 18px);
+  max-width: 100%;
+  object-fit: contain;
 }
 
-.fontPreview.silhouette {
-  color: #050708;
-  text-shadow: none;
+.gooseGlyph small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gooseGlyph.spacer {
+  min-width: clamp(18px, 5vw, 56px);
+}
+
+.gooseGlyph.missing {
+  color: var(--ink);
+  font-size: clamp(48px, 10vw, 120px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.fontPreview.silhouette .gooseGlyph img {
+  filter: brightness(0) contrast(1.12) blur(var(--goose-blur, 0));
+}
+
+.candidatePanel {
+  align-items: center;
+  background: #fbfaf6;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  padding: 14px;
+}
+
+.candidatePanel p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.candidateStrip {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.candidateCard {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  flex: 0 0 74px;
+  gap: 4px;
+  grid-template-rows: 58px auto;
+  justify-items: center;
+  padding: 7px;
+}
+
+.candidateCard img {
+  filter: blur(var(--goose-blur, 0));
+  height: 58px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.candidateCard.silhouette img {
+  filter: brightness(0) contrast(1.12) blur(var(--goose-blur, 0));
+}
+
+.candidateCard span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .pipelineCards {
@@ -313,9 +402,14 @@ textarea {
 
   .topbar,
   .displayHeader,
-  .exportPanel {
+  .exportPanel,
+  .candidatePanel {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .candidatePanel {
+    grid-template-columns: 1fr;
   }
 
   .workspace,
