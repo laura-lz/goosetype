@@ -35,7 +35,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Curate permissively licensed flying-goose source photos from iNaturalist. "
-            "The output is source photos plus metadata; run extract_geese.py afterward."
+            "The output is source photos plus metadata; run extract_instances_v2.py afterward."
         )
     )
     parser.add_argument("--output", default="data/external_sources/inaturalist_curated_flying_geese")

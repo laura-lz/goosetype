@@ -1,0 +1,22 @@
+# macOS/editor noise
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# GooseType generated datasets and model/cache outputs.
+# These are reproducible/local artifacts and should not be stored in normal Git.
+data/external_sources/
+data/crops_v2_full/
+data/masks_v2_pass100/
+data/masks_v2_pass100_b/
+data/masks_v2_from_crops/
+data/font_targets/
+
+# Review/report image dumps
+reports/candidate_review/
+reports/matching/
+
+# Local model/runtime caches
+.cache/
+models/
+checkpoints/

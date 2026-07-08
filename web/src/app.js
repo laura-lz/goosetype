@@ -1,37 +1,26 @@
-const FONT_OPTIONS = {
-  arial: {
-    label: "Arial",
-    family: "Arial, Helvetica, sans-serif",
-    candidatesUrl: "/data/font_candidates/arial_candidates.json",
-  },
-  times: {
-    label: "Times New Roman",
-    family: "\"Times New Roman\", Times, serif",
-    candidatesUrl: "/data/font_candidates/times_new_roman_candidates.json",
-  },
+const CANDIDATE_LIBRARY = {
+  label: "GooseType",
+  family: "Arial, Helvetica, sans-serif",
+  candidatesUrl: "/data/font_candidates/goosetype_candidates.json",
 };
 
 const state = {
-  text: "GOOSETYPE",
-  font: "arial",
+  text: "goosetype",
   italic: false,
   bold: false,
   readability: 68,
-  blur: 0,
+  smoothing: 0,
   mode: "photo",
-  allCaps: true,
 };
 
 const candidateCache = {};
 
 const els = {
   textInput: document.querySelector("#textInput"),
-  fontSelect: document.querySelector("#fontSelect"),
   styleGroup: document.querySelector("#styleGroup"),
   modeGroup: document.querySelector("#modeGroup"),
   readabilitySlider: document.querySelector("#readabilitySlider"),
   blurSlider: document.querySelector("#blurSlider"),
-  allCapsToggle: document.querySelector("#allCapsToggle"),
   downloadButton: document.querySelector("#downloadButton"),
   requestButton: document.querySelector("#requestButton"),
   fontPreview: document.querySelector("#fontPreview"),
@@ -46,18 +35,12 @@ const els = {
 bindControls();
 setActiveStyle();
 setActiveMode();
-loadCandidates(state.font);
+loadCandidates();
 render();
 
 function bindControls() {
   els.textInput.addEventListener("input", () => {
     state.text = els.textInput.value;
-    render();
-  });
-
-  els.fontSelect.addEventListener("change", () => {
-    state.font = els.fontSelect.value;
-    loadCandidates(state.font);
     render();
   });
 
@@ -83,12 +66,7 @@ function bindControls() {
   });
 
   els.blurSlider.addEventListener("input", () => {
-    state.blur = Number(els.blurSlider.value);
-    render();
-  });
-
-  els.allCapsToggle.addEventListener("input", () => {
-    state.allCaps = els.allCapsToggle.checked;
+    state.smoothing = Number(els.blurSlider.value);
     render();
   });
 
@@ -102,52 +80,66 @@ function bindControls() {
   });
 }
 
-async function loadCandidates(fontKey) {
-  if (candidateCache[fontKey]) {
+async function loadCandidates() {
+  if (candidateCache.library) {
     render();
     return;
   }
 
-  const font = FONT_OPTIONS[fontKey];
-  els.candidateStatus.textContent = `Loading ${font.label} goose candidates...`;
+  els.candidateStatus.textContent = "Loading GooseType candidate library...";
   try {
-    const response = await fetch(font.candidatesUrl, { cache: "no-store" });
+    const response = await fetch(CANDIDATE_LIBRARY.candidatesUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    candidateCache[fontKey] = await response.json();
-    const letters = Object.keys(candidateCache[fontKey]).length;
-    els.candidateStatus.textContent = `${font.label}: ${letters} letters loaded, 12 ranked candidates per letter.`;
+    candidateCache.library = normalizeCandidateData(await response.json());
+    const letters = Object.keys(candidateCache.library).length;
+    const firstRanked = Object.values(candidateCache.library)[0] || [];
+    els.candidateStatus.textContent = `${letters} letters loaded, ${firstRanked.length} current-mask candidates per letter.`;
   } catch (error) {
-    els.candidateStatus.textContent = `Could not load candidate JSON from ${font.candidatesUrl}. Run the page from the repo root server.`;
+    els.candidateStatus.textContent = `Could not load candidate JSON from ${CANDIDATE_LIBRARY.candidatesUrl}. Run the page from the repo root server.`;
     console.error(error);
   }
   render();
 }
 
-function render() {
-  const font = FONT_OPTIONS[state.font];
-  const style = currentStyle();
-  const text = state.allCaps ? state.text.toUpperCase() : state.text;
+function normalizeCandidateData(data) {
+  if (!data || data.schema !== "goosetype-candidates-v2") {
+    return data;
+  }
 
-  els.previewTitle.textContent = `${font.label} ${style.label}`;
+  const normalized = {};
+  const geese = data.geese || {};
+  for (const [letter, ranked] of Object.entries(data.letters || {})) {
+    normalized[letter] = ranked.map((candidate) => ({
+      ...(geese[candidate.goose_id] || {}),
+      ...candidate,
+      letter,
+    }));
+  }
+  return normalized;
+}
+
+function render() {
+  const style = currentStyle();
+  const text = state.text;
+
+  els.previewTitle.textContent = `GooseType ${style.label}`;
   els.readabilityLabel.textContent = `${state.readability}%`;
   els.readabilityModeLabel.textContent = readabilityLabel();
   els.exportStatus.textContent = "Frontend request builder ready. Backend font generation endpoint pending.";
 
-  renderGooseText(text || "GOOSETYPE");
+  renderGooseText(text || "goosetype");
 }
 
 function renderGooseText(text) {
-  const candidates = candidateCache[state.font];
+  const candidates = candidateCache.library;
   els.fontPreview.innerHTML = "";
   els.fontPreview.classList.toggle("silhouette", state.mode === "silhouette");
-  els.fontPreview.style.setProperty("--goose-blur", `${state.blur}px`);
-  els.candidateStrip.style.setProperty("--goose-blur", `${state.blur}px`);
 
   if (!candidates) {
     const loading = document.createElement("p");
     loading.className = "fontPreviewFallback";
     loading.textContent = text;
-    loading.style.fontFamily = FONT_OPTIONS[state.font].family;
+    loading.style.fontFamily = CANDIDATE_LIBRARY.family;
     els.fontPreview.append(loading);
     els.candidateStrip.innerHTML = "";
     return;
@@ -166,7 +158,7 @@ function renderGooseText(text) {
       fragment.append(spacer);
       continue;
     }
-    const letter = state.allCaps ? char.toUpperCase() : char;
+    const letter = char;
     const ranked = candidates[letter];
     if (!ranked || !ranked.length) {
       const fallback = document.createElement("span");
@@ -193,12 +185,7 @@ function renderGlyph(letter, candidate) {
   glyph.className = "gooseGlyph";
   glyph.title = `${letter}: ${candidate.goose_id}, score ${candidate.score}`;
 
-  const image = document.createElement("img");
-  image.alt = `${letter} goose candidate`;
-  image.src = toWebPath(candidateImagePath(candidate));
-  image.loading = "lazy";
-  image.decoding = "async";
-  image.style.transform = candidate.flip_x ? "scaleX(-1)" : "";
+  const image = renderCandidateImage(candidate, `${letter} goose candidate`);
 
   const label = document.createElement("small");
   label.textContent = letter;
@@ -221,15 +208,81 @@ function renderCandidateStrip(chosen) {
     const card = document.createElement("article");
     card.className = "candidateCard";
     card.classList.toggle("silhouette", state.mode === "silhouette");
-    const image = document.createElement("img");
-    image.alt = `${item.letter} selected candidate`;
-    image.src = toWebPath(candidateImagePath(item.candidate));
-    image.style.transform = item.candidate.flip_x ? "scaleX(-1)" : "";
+    const image = renderCandidateImage(item.candidate, `${item.letter} selected candidate`);
     const text = document.createElement("span");
     text.textContent = `${item.letter} ${item.candidate.score.toFixed(2)}`;
     card.append(image, text);
     els.candidateStrip.append(card);
   }
+}
+
+function renderCandidateImage(candidate, altText) {
+  const src = toWebPath(candidateImagePath(candidate));
+  if (state.mode === "silhouette" && state.smoothing > 0) {
+    const canvas = document.createElement("canvas");
+    canvas.className = "smoothedSilhouette";
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", altText);
+    canvas.style.transform = candidateTransform(candidate);
+    drawSmoothedSilhouette(canvas, src, false);
+    return canvas;
+  }
+
+  const image = document.createElement("img");
+  image.alt = altText;
+  image.src = src;
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.style.transform = candidateTransform(candidate);
+  return image;
+}
+
+function candidateTransform(candidate) {
+  return candidate.flip_x ? "scaleX(-1)" : "";
+}
+
+function drawSmoothedSilhouette(canvas, src, flipX) {
+  const source = new Image();
+  source.onload = () => {
+    const width = source.naturalWidth || source.width || 1;
+    const height = source.naturalHeight || source.height || 1;
+    canvas.width = width;
+    canvas.height = height;
+
+    const filtered = document.createElement("canvas");
+    filtered.width = width;
+    filtered.height = height;
+    const filteredContext = filtered.getContext("2d", { willReadFrequently: true });
+    filteredContext.clearRect(0, 0, width, height);
+    filteredContext.filter = `blur(${state.smoothing}px)`;
+    if (flipX) {
+      filteredContext.translate(width, 0);
+      filteredContext.scale(-1, 1);
+    }
+    filteredContext.drawImage(source, 0, 0, width, height);
+
+    const imageData = filteredContext.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const threshold = Math.max(14, 96 - state.smoothing * 7);
+    for (let index = 0; index < data.length; index += 4) {
+      if (data[index + 3] >= threshold) {
+        data[index] = 0;
+        data[index + 1] = 0;
+        data[index + 2] = 0;
+        data[index + 3] = 255;
+      } else {
+        data[index] = 0;
+        data[index + 1] = 0;
+        data[index + 2] = 0;
+        data[index + 3] = 0;
+      }
+    }
+
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, width, height);
+    context.putImageData(imageData, 0, 0);
+  };
+  source.src = src;
 }
 
 function candidateImagePath(candidate) {
@@ -266,23 +319,22 @@ function readabilityLabel() {
 function buildGenerationRequest() {
   const style = currentStyle();
   return {
-    text: state.allCaps ? state.text.toUpperCase() : state.text,
-    reference_font: {
-      family: FONT_OPTIONS[state.font].label,
-      style: style.label,
+    text: state.text,
+    style: {
+      preset: style.label,
       bold: state.bold,
       italic: state.italic,
     },
-    candidate_source: FONT_OPTIONS[state.font].candidatesUrl,
-    non_font_dependent_controls: {
+    candidate_source: CANDIDATE_LIBRARY.candidatesUrl,
+    controls: {
       readability: state.readability / 100,
       abstraction: (100 - state.readability) / 100,
-      gaussian_blur_px: state.blur,
+      silhouette_smoothing_px: state.smoothing,
       render_mode: state.mode,
-      all_caps: state.allCaps,
+      all_caps: false,
     },
     expected_backend_pipeline: [
-      "load selected font candidate rankings",
+      "load image-derived goose candidate rankings",
       "choose goose cutouts or silhouettes for requested text",
       "compose glyph preview",
       "generate and return ttf font",

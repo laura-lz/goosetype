@@ -246,7 +246,7 @@ textarea {
   align-items: end;
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(6px, 1.3vw, 16px);
+  gap: clamp(3px, 0.65vw, 8px);
   justify-content: center;
   line-height: 1;
   margin: 0;
@@ -271,13 +271,13 @@ textarea {
   grid-template-rows: minmax(84px, 1fr) 16px;
   height: clamp(104px, 13vw, 168px);
   justify-items: center;
-  min-width: clamp(58px, 8vw, 112px);
+  min-width: clamp(44px, 6vw, 86px);
   position: relative;
 }
 
-.gooseGlyph img {
+.gooseGlyph img,
+.gooseGlyph canvas {
   display: block;
-  filter: blur(var(--goose-blur, 0));
   max-height: calc(100% - 18px);
   max-width: 100%;
   object-fit: contain;
@@ -301,7 +301,7 @@ textarea {
 }
 
 .fontPreview.silhouette .gooseGlyph img {
-  filter: brightness(0) contrast(1.12) blur(var(--goose-blur, 0));
+  filter: brightness(0) contrast(1.12);
 }
 
 .candidatePanel {
@@ -342,15 +342,15 @@ textarea {
   padding: 7px;
 }
 
-.candidateCard img {
-  filter: blur(var(--goose-blur, 0));
+.candidateCard img,
+.candidateCard canvas {
   height: 58px;
   max-width: 100%;
   object-fit: contain;
 }
 
 .candidateCard.silhouette img {
-  filter: brightness(0) contrast(1.12) blur(var(--goose-blur, 0));
+  filter: brightness(0) contrast(1.12);
 }
 
 .candidateCard span {
@@ -419,5 +419,67 @@ textarea {
 
   .fontDisplayBox {
     min-height: 240px;
+  }
+}
+
+@media (max-width: 620px) {
+  .displayPanel {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .displayHeader h2 {
+    font-size: 22px;
+  }
+
+  .scoreBadge {
+    padding: 7px 9px;
+  }
+
+  .fontDisplayBox {
+    min-height: 190px;
+    padding: 12px 8px;
+  }
+
+  .fontPreview {
+    align-items: end;
+    column-gap: 1px;
+    min-height: 150px;
+    row-gap: 6px;
+  }
+
+  .gooseGlyph {
+    grid-template-rows: minmax(62px, 1fr) 14px;
+    height: clamp(78px, 23vw, 112px);
+    min-width: clamp(26px, 9vw, 46px);
+  }
+
+  .gooseGlyph img,
+  .gooseGlyph canvas {
+    max-height: calc(100% - 14px);
+  }
+
+  .gooseGlyph small {
+    font-size: 10px;
+  }
+
+  .gooseGlyph.spacer {
+    min-width: clamp(6px, 3vw, 14px);
+  }
+
+  .candidatePanel {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .candidateCard {
+    flex-basis: 62px;
+    grid-template-rows: 48px auto;
+    padding: 5px;
+  }
+
+  .candidateCard img,
+  .candidateCard canvas {
+    height: 48px;
   }
 }

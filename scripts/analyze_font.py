@@ -18,8 +18,8 @@ def main() -> None:
     parser.add_argument("--name", default="reference", help="Name to store in the generated metadata.")
     parser.add_argument("--letters", default=string.ascii_uppercase + string.ascii_lowercase, help="Letters to analyze.")
     parser.add_argument("--size", type=int, default=220, help="Raster size for each glyph target.")
-    parser.add_argument("--output", default="data/processed/font_targets/reference.json")
-    parser.add_argument("--mask-dir", default="data/processed/font_targets/masks")
+    parser.add_argument("--output", default="data/font_targets/reference.json")
+    parser.add_argument("--mask-dir", default="data/font_targets/masks")
     args = parser.parse_args()
 
     output = Path(args.output)

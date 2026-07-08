@@ -4,14 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GooseType</title>
-    <link rel="stylesheet" href="src/styles.css?v=5" />
+    <link rel="stylesheet" href="src/styles.css?v=6" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div>
           <h1>GooseType</h1>
-          <p>Generate a goose-built font family from a reference type style.</p>
+          <p>Generate a goose-built font family from an image library.</p>
         </div>
         <button id="downloadButton" class="downloadButton" type="button" aria-describedby="exportStatus" disabled>
           Download TTF
@@ -22,15 +22,7 @@
         <aside class="controls" aria-label="Font generation controls">
           <label class="field">
             <span>Text Input</span>
-            <textarea id="textInput" rows="4" maxlength="120">GOOSETYPE</textarea>
-          </label>
-
-          <label class="field">
-            <span>Font Similarity</span>
-            <select id="fontSelect">
-              <option value="arial">Arial</option>
-              <option value="times">Times New Roman</option>
-            </select>
+            <textarea id="textInput" rows="4" maxlength="120">goosetype</textarea>
           </label>
 
           <div class="field">
@@ -50,7 +42,7 @@
 
           <label class="slider">
             <span>
-              <b>Blur</b>
+              <b>Smoothing</b>
             </span>
             <input id="blurSlider" type="range" min="0" max="10" step="0.5" value="0" />
           </label>
@@ -62,18 +54,13 @@
               <button type="button" data-mode="silhouette">Silhouette</button>
             </div>
           </div>
-
-          <label class="toggle">
-            <input id="allCapsToggle" type="checkbox" checked />
-            <span>All caps generation</span>
-          </label>
         </aside>
 
         <section class="displayPanel" aria-label="Generated font display">
           <div class="displayHeader">
             <div>
               <span class="eyebrow">Font Display</span>
-              <h2 id="previewTitle">Arial Standard</h2>
+              <h2 id="previewTitle">GooseType Standard</h2>
             </div>
             <div class="scoreBadge">
               <span id="readabilityLabel">68%</span>
@@ -104,6 +91,6 @@
       </section>
     </main>
 
-    <script src="src/app.js?v=5"></script>
+    <script src="src/app.js?v=6"></script>
   </body>
 </html>

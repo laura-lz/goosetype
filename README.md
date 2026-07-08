@@ -21,43 +21,48 @@ The analysis pipeline is split into practical scripts:
 ```bash
 python3 -m pip install -r requirements.txt
 python3 -m pip install -r requirements-segmentation.txt
-python3 scripts/extract_geese.py --input goose_photos_square --output data/processed
-python3 scripts/compute_features.py --metadata data/processed/metadata.json --output data/processed/features.json
-python3 scripts/analyze_font.py --name arial --font "/System/Library/Fonts/Supplemental/Arial.ttf" --output data/processed/font_targets/arial.json
-python3 scripts/select_candidates.py --features data/processed/features.json --font-targets data/processed/font_targets/arial.json --output data/processed/candidates.json
+python3 -m pip install -r requirements-ml.txt
+python3 scripts/extract_instances_v2.py --input goose_photos_square --output data/instances_v2
+python3 scripts/mask_crops_v2.py --crops-metadata data/crops_v2_full/metadata.json --output data/masks_v2_from_crops --status pass
+python3 scripts/build_current_mask_candidates.py --metadata data/masks_v2_from_crops/metadata.json --output data/font_candidates/goosetype_candidates.json
 ```
 
-`extract_geese.py` identifies foreground goose regions, separates disconnected geese into individual cutouts, erases backgrounds, and keeps overlapping foreground groups together. It now prefers model-based background removal through `rembg` when available, falls back to OpenCV GrabCut, and only uses the old color-threshold heuristic as a last resort. If an overlapping scene has a fully visible front goose, a future stronger instance segmentation model or manual mask can provide that extra instance without changing the downstream metadata shape.
+`extract_instances_v2.py` is the current extraction path. It detects goose-like boxes with OWL-ViT, runs a tiled detector pass for small birds in flock photos, segments each detected box with SAM, saves one crop/mask/silhouette per accepted bird, and writes an automatic contact sheet for visual inspection. It keeps clean single-bird instances and can synthesize a small number of overlapping two-bird `composite` instances for complex letters such as `M` or `W`.
 
-For better extraction, install the optional free local ML stack and run a detector-guided pass:
+Current extraction command:
 
 ```bash
-python3 -m pip install -r requirements-ml.txt
-python3 scripts/extract_geese.py \
+python3 scripts/extract_instances_v2.py \
   --input goose_photos \
-  --output data/processed \
-  --detector-backend owlvit \
+  --output data/instances_v2 \
+  --stage full \
   --segmentation-backend sam \
-  --detection-query goose \
-  --detection-query geese \
-  --detection-threshold 0.25 \
+  --fallback-backend rembg \
   --keep-rejected
 ```
 
-`--detector-backend owlvit` uses the public `google/owlvit-base-patch32` model through Hugging Face Transformers. `--segmentation-backend sam` uses `facebook/sam-vit-base` as a box-prompted mask model. Neither requires paid API tokens, but both download model weights the first time they run. OWL-ViT proposes goose-like boxes first, then SAM segments each detected goose box. If SAM is too slow on a machine, `--segmentation-backend rembg` remains a faster fallback.
+OWL-ViT uses the public `google/owlvit-base-patch32` model through Hugging Face Transformers. SAM uses `facebook/sam-vit-base` as a box-prompted mask model. Neither requires paid API tokens, but both need local model weights in the Hugging Face cache. If SAM is too slow on a machine, `--segmentation-backend rembg` remains a faster fallback.
+
+To validate detector crops before running masks:
+
+```bash
+python3 scripts/extract_instances_v2.py \
+  --input goose_photos \
+  --output data/crops_v2 \
+  --stage crop
+```
 
 Useful extraction options:
 
 ```bash
-python3 scripts/extract_geese.py --segmentation-backend rembg --rembg-model isnet-general-use
-python3 scripts/extract_geese.py --detector-backend owlvit --segmentation-backend sam
-python3 scripts/extract_geese.py --detector-backend owlvit --segmentation-backend rembg
-python3 scripts/extract_geese.py --segmentation-backend grabcut
-python3 scripts/extract_geese.py --segmentation-backend heuristic
-python3 scripts/extract_geese.py --min-goose-score 0.65 --keep-rejected
+python3 scripts/extract_instances_v2.py --segmentation-backend sam --fallback-backend rembg
+python3 scripts/extract_instances_v2.py --segmentation-backend rembg
+python3 scripts/extract_instances_v2.py --max-composites-per-image 0
+python3 scripts/extract_instances_v2.py --detection-threshold 0.12 --tile-threshold 0.09
+python3 scripts/extract_instances_v2.py --min-goose-score 0.65 --keep-rejected
 ```
 
-After segmentation, each connected component is scored for goose-like geometry before it is saved. The filter rejects common non-goose fragments such as sticks, reeds, tiny blobs, border chunks, very sparse branch-like shapes, and dense bush-like regions using aspect ratio, fill ratio, contour thinness, size, curvature, and border contact. `--keep-rejected` writes rejected components to `data/processed/rejected/` so the threshold can be tuned visually.
+After segmentation, each mask is scored for goose-like geometry before it is saved. The filter rejects common non-goose fragments such as sticks, reeds, tiny blobs, border chunks, very sparse branch-like shapes, and dense bush-like regions using aspect ratio, fill ratio, contour thinness, size, curvature, and border contact. `--keep-rejected` writes rejected masks to the extraction output folder so thresholds can be tuned visually.
 
 `analyze_font.py` is the future import-font hook: it rasterizes selected letters from a `.ttf` or `.otf`, stores masks, and calculates the same feature family used for geese.
 
@@ -82,11 +87,11 @@ python3 scripts/fetch_inaturalist_geese.py \
   --limit 80 \
   --output data/external_sources/inaturalist_canada_goose
 
-python3 scripts/extract_geese.py \
+python3 scripts/extract_instances_v2.py \
   --input data/external_sources/inaturalist_canada_goose/photos \
-  --output data/processed_external/inaturalist_canada_goose \
-  --detector-backend owlvit \
+  --output data/instances_v2_canada_goose \
   --segmentation-backend sam \
+  --fallback-backend rembg \
   --keep-rejected
 ```
 

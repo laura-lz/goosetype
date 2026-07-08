@@ -76,12 +76,21 @@ def build_instance_mask(
     rembg_model: str = "isnet-general-use",
     sam_model: str = "facebook/sam-vit-base",
     max_segmentation_side: int = 1600,
+    point_prompts: list[tuple[int, int, int]] | None = None,
+    support_mask: Image.Image | None = None,
 ) -> Image.Image:
     backend = backend.lower()
     if backend == "sam":
         if bbox is None:
             raise ValueError("SAM segmentation requires a box prompt.")
-        return build_sam_box_mask(image, bbox=bbox, model_name=sam_model, max_side=max_segmentation_side)
+        return build_sam_box_mask(
+            image,
+            bbox=bbox,
+            model_name=sam_model,
+            max_side=max_segmentation_side,
+            point_prompts=point_prompts,
+            support_mask=support_mask,
+        )
     return build_foreground_mask(
         image,
         threshold=threshold,
@@ -219,6 +228,8 @@ def build_sam_box_mask(
     bbox: tuple[int, int, int, int],
     model_name: str = "facebook/sam-vit-base",
     max_side: int = 1600,
+    point_prompts: list[tuple[int, int, int]] | None = None,
+    support_mask: Image.Image | None = None,
 ) -> Image.Image:
     global _SAM_MODELS
 
@@ -233,6 +244,7 @@ def build_sam_box_mask(
 
     source = image.convert("RGB")
     prompt_box = clamp_bbox(bbox, source.size)
+    prompt_points = point_prompts or build_sam_prompt_points(source, prompt_box, support_mask=support_mask)
     if max_side > 0 and max(source.size) > max_side:
         resized = ImageOps.contain(source, (max_side, max_side), Image.Resampling.LANCZOS)
         scale_x = resized.width / source.width
@@ -243,18 +255,37 @@ def build_sam_box_mask(
             int(round(prompt_box[2] * scale_x)),
             int(round(prompt_box[3] * scale_y)),
         )
+        prompt_points = [
+            (int(round(x * scale_x)), int(round(y * scale_y)), label)
+            for x, y, label in prompt_points
+        ]
         source = resized
 
     cached = _SAM_MODELS.get(model_name)
     if cached is None:
-        processor = SamProcessor.from_pretrained(model_name)
-        model = SamModel.from_pretrained(model_name)
+        local_only = os.environ.get("GOOSETYPE_SAM_ALLOW_DOWNLOAD", "").lower() not in {"1", "true", "yes"}
+        try:
+            processor = SamProcessor.from_pretrained(model_name, local_files_only=local_only)
+            model = SamModel.from_pretrained(model_name, local_files_only=local_only)
+        except Exception as error:
+            if local_only:
+                raise RuntimeError(
+                    f"SAM model {model_name!r} is not fully available in the local Hugging Face cache. "
+                    "Connect to the network once with GOOSETYPE_SAM_ALLOW_DOWNLOAD=1, or install/copy the "
+                    "model files into the Hugging Face cache."
+                ) from error
+            raise
         model.eval()
         cached = (processor, model)
         _SAM_MODELS[model_name] = cached
     processor, model = cached
 
-    inputs = processor(source, input_boxes=[[[list(prompt_box)]]], return_tensors="pt")
+    processor_kwargs = {"input_boxes": [[[list(prompt_box)]]]}
+    if prompt_points:
+        processor_kwargs["input_points"] = [[[[x, y] for x, y, _ in prompt_points]]]
+        processor_kwargs["input_labels"] = [[[label for _, _, label in prompt_points]]]
+
+    inputs = processor(source, **processor_kwargs, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs)
 
@@ -266,12 +297,185 @@ def build_sam_box_mask(
         reshaped_input_sizes.cpu(),
     )[0]
     scores = outputs.iou_scores.cpu()[0, 0]
-    best_index = int(scores.argmax().item())
+    best_index = choose_sam_mask_index(masks[0], scores, prompt_box, source.size, support_mask=support_mask)
     mask_tensor = masks[0, best_index]
     mask = Image.fromarray((mask_tensor.numpy().astype("uint8") * 255), mode="L")
     if mask.size != image.size:
         mask = mask.resize(image.size, Image.Resampling.NEAREST)
     return clean_mask(mask)
+
+
+def build_sam_prompt_points(
+    image: Image.Image,
+    prompt_box: tuple[int, int, int, int],
+    support_mask: Image.Image | None = None,
+) -> list[tuple[int, int, int]]:
+    x0, y0, x1, y1 = clamp_bbox(prompt_box, image.size)
+    points: list[tuple[int, int, int]] = []
+
+    support = None
+    if support_mask is not None:
+        support = support_mask.convert("L")
+        if support.size != image.size:
+            support = support.resize(image.size, Image.Resampling.NEAREST)
+        support_point = mask_centroid_point(support, bbox=(x0, y0, x1, y1))
+        if support_point is not None:
+            points.append((support_point[0], support_point[1], 1))
+
+    points.append(((x0 + x1) // 2, (y0 + y1) // 2, 1))
+
+    dark_point = darkest_component_point(image, bbox=(x0, y0, x1, y1), support_mask=support)
+    if dark_point is not None and all(point_distance(dark_point, (px, py)) > 8 for px, py, label in points if label == 1):
+        points.append((dark_point[0], dark_point[1], 1))
+
+    neg_margin = max(3, int(round(min(x1 - x0, y1 - y0) * 0.08)))
+    negative_points = [
+        (max(0, x0 - neg_margin), max(0, y0 - neg_margin)),
+        (min(image.width - 1, x1 + neg_margin), max(0, y0 - neg_margin)),
+        (max(0, x0 - neg_margin), min(image.height - 1, y1 + neg_margin)),
+        (min(image.width - 1, x1 + neg_margin), min(image.height - 1, y1 + neg_margin)),
+    ]
+    support_pixels = support.load() if support is not None else None
+    for nx, ny in negative_points:
+        if support_pixels is not None and support_pixels[nx, ny] > 127:
+            continue
+        points.append((nx, ny, 0))
+
+    return dedupe_sam_points(points, max_points=8)
+
+
+def mask_centroid_point(mask: Image.Image, bbox: tuple[int, int, int, int]) -> tuple[int, int] | None:
+    binary = mask.convert("L")
+    pixels = binary.load()
+    x0, y0, x1, y1 = clamp_bbox(bbox, binary.size)
+    total_x = total_y = count = 0
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if pixels[x, y] <= 127:
+                continue
+            total_x += x
+            total_y += y
+            count += 1
+    if count < 12:
+        return None
+    return int(round(total_x / count)), int(round(total_y / count))
+
+
+def darkest_component_point(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int],
+    support_mask: Image.Image | None = None,
+) -> tuple[int, int] | None:
+    x0, y0, x1, y1 = clamp_bbox(bbox, image.size)
+    crop = image.convert("RGB").crop((x0, y0, x1, y1))
+    gray = ImageOps.grayscale(crop)
+    values = list(gray.getdata())
+    if not values:
+        return None
+    threshold = min(105, sorted(values)[max(0, int(len(values) * 0.22) - 1)] + 18)
+    dark = gray.point(lambda value: 255 if value <= threshold else 0)
+    if support_mask is not None:
+        support = support_mask.convert("L").crop((x0, y0, x1, y1)).filter(ImageFilter.MaxFilter(9))
+        dark = ImageChops.multiply(dark, support.point(lambda value: 255 if value > 24 else 0))
+    components = connected_components(dark, min_area=max(8, int((x1 - x0) * (y1 - y0) * 0.002)))
+    if not components:
+        return None
+    component = components[0]
+    local_mask = component_mask(dark, component.bbox)
+    point = mask_centroid_point(local_mask, component.bbox)
+    if point is None:
+        return None
+    return x0 + point[0], y0 + point[1]
+
+
+def dedupe_sam_points(points: list[tuple[int, int, int]], max_points: int) -> list[tuple[int, int, int]]:
+    deduped: list[tuple[int, int, int]] = []
+    for point in points:
+        x, y, label = point
+        if any(label == other_label and point_distance((x, y), (other_x, other_y)) < 6 for other_x, other_y, other_label in deduped):
+            continue
+        deduped.append(point)
+        if len(deduped) >= max_points:
+            break
+    return deduped
+
+
+def point_distance(a: tuple[int, int], b: tuple[int, int]) -> float:
+    return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def choose_sam_mask_index(
+    masks,
+    scores,
+    prompt_box: tuple[int, int, int, int],
+    image_size: tuple[int, int],
+    support_mask: Image.Image | None = None,
+) -> int:
+    best_index = 0
+    best_score = float("-inf")
+    for index in range(masks.shape[0]):
+        mask = Image.fromarray((masks[index].numpy().astype("uint8") * 255), mode="L")
+        score = sam_candidate_score(mask, float(scores[index].item()), prompt_box, image_size, support_mask=support_mask)
+        if score > best_score:
+            best_score = score
+            best_index = index
+    return best_index
+
+
+def sam_candidate_score(
+    mask: Image.Image,
+    sam_score: float,
+    prompt_box: tuple[int, int, int, int],
+    image_size: tuple[int, int],
+    support_mask: Image.Image | None = None,
+) -> float:
+    binary = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    bbox = binary.getbbox()
+    if not bbox:
+        return -10.0
+    area = sum(1 for value in binary.getdata() if value > 127)
+    x0, y0, x1, y1 = prompt_box
+    box_area = max(1, (x1 - x0) * (y1 - y0))
+    bbox_area = max(1, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]))
+    coverage = area / box_area
+    fill = area / bbox_area
+    edge_contact = mask_edge_contact_ratio(binary)
+    bbox_aspect = (bbox[2] - bbox[0]) / max(1, bbox[3] - bbox[1])
+    support_iou = binary_mask_iou(binary, support_mask) if support_mask is not None else None
+
+    score = sam_score
+    if coverage < 0.05:
+        score -= (0.05 - coverage) * 5.0
+    if coverage > 0.72:
+        score -= (coverage - 0.72) * 2.8
+    if fill > 0.82:
+        score -= (fill - 0.82) * 1.8
+    if edge_contact > 0.06:
+        score -= (edge_contact - 0.06) * 3.0
+    if bbox_aspect < 0.16 or bbox_aspect > 6.0:
+        score -= 0.35
+    if bbox[0] <= 1 or bbox[1] <= 1 or bbox[2] >= image_size[0] - 1 or bbox[3] >= image_size[1] - 1:
+        score -= 0.22
+    if support_iou is not None:
+        score += min(0.18, support_iou * 0.22)
+        if support_iou < 0.12:
+            score -= 0.18
+    return score
+
+
+def binary_mask_iou(mask: Image.Image, other_mask: Image.Image) -> float:
+    a = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    b = other_mask.convert("L")
+    if b.size != a.size:
+        b = b.resize(a.size, Image.Resampling.NEAREST)
+    b = b.point(lambda value: 255 if value > 127 else 0)
+    intersection = union = 0
+    for left, right in zip(a.getdata(), b.getdata()):
+        left_on = left > 127
+        right_on = right > 127
+        intersection += int(left_on and right_on)
+        union += int(left_on or right_on)
+    return intersection / max(1, union)
 
 
 def build_grabcut_mask(image: Image.Image) -> Image.Image:
@@ -315,7 +519,256 @@ def clean_mask(mask: Image.Image) -> Image.Image:
     cleaned = cleaned.filter(ImageFilter.MedianFilter(5))
     cleaned = cleaned.filter(ImageFilter.MaxFilter(3))
     cleaned = cleaned.filter(ImageFilter.MinFilter(3))
-    return cleaned.point(lambda value: 255 if value > 96 else 0)
+    binary = cleaned.point(lambda value: 255 if value > 96 else 0)
+    return refine_instance_mask(binary)
+
+
+def refine_instance_mask(mask: Image.Image, min_island_area: int = 18) -> Image.Image:
+    binary = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    binary = fill_internal_holes(binary)
+    binary = remove_tiny_islands(binary, min_area=min_island_area)
+    return binary.point(lambda value: 255 if value > 127 else 0)
+
+
+def color_refine_instance_mask(
+    image: Image.Image,
+    mask: Image.Image,
+    min_island_area: int = 18,
+) -> Image.Image:
+    source = image.convert("RGB")
+    if source.size != mask.size:
+        source = source.resize(mask.size, Image.Resampling.LANCZOS)
+    rough = refine_instance_mask(mask, min_island_area=min_island_area)
+    foreground = rough.filter(ImageFilter.MinFilter(5))
+    if not foreground.getbbox():
+        foreground = rough
+    background = rough.filter(ImageFilter.MaxFilter(9))
+
+    foreground_mean = masked_rgb_mean(source, foreground, foreground=True)
+    background_mean = masked_rgb_mean(source, background, foreground=False)
+    if foreground_mean is None or background_mean is None:
+        return rough
+
+    width, height = rough.size
+    rough_pixels = rough.load()
+    bg_pixels = background.load()
+    rgb_pixels = source.load()
+    refined = Image.new("L", rough.size, 0)
+    out = refined.load()
+
+    for y in range(height):
+        for x in range(width):
+            mask_value = rough_pixels[x, y]
+            if mask_value <= 96:
+                continue
+            rgb = rgb_pixels[x, y]
+            fg_distance = rgb_distance(rgb, foreground_mean)
+            bg_distance = rgb_distance(rgb, background_mean)
+            color_margin = bg_distance - fg_distance
+            strong_mask = mask_value > 220 and bg_pixels[x, y] > 0
+            if color_margin > -18 or (strong_mask and color_margin > -42):
+                out[x, y] = 255
+
+    refined = refined.filter(ImageFilter.MedianFilter(3))
+    return refine_instance_mask(refined, min_island_area=min_island_area)
+
+
+def masked_rgb_mean(image: Image.Image, mask: Image.Image, foreground: bool) -> tuple[float, float, float] | None:
+    rgb_pixels = image.load()
+    mask_pixels = mask.convert("L").load()
+    width, height = image.size
+    totals = [0.0, 0.0, 0.0]
+    count = 0
+    edge_stride = max(1, min(width, height) // 160)
+
+    for y in range(0, height, edge_stride):
+        for x in range(0, width, edge_stride):
+            is_foreground = mask_pixels[x, y] > 127
+            if foreground != is_foreground:
+                continue
+            if not foreground and not is_edge_or_background_sample(x, y, width, height, mask_pixels):
+                continue
+            pixel = rgb_pixels[x, y]
+            totals[0] += pixel[0]
+            totals[1] += pixel[1]
+            totals[2] += pixel[2]
+            count += 1
+
+    if count < 12:
+        return None
+    return (totals[0] / count, totals[1] / count, totals[2] / count)
+
+
+def is_edge_or_background_sample(x: int, y: int, width: int, height: int, mask_pixels) -> bool:
+    edge = max(3, min(width, height) // 18)
+    return x < edge or y < edge or x >= width - edge or y >= height - edge or mask_pixels[x, y] <= 20
+
+
+def rgb_distance(pixel: tuple[int, int, int], mean: tuple[float, float, float]) -> float:
+    red = float(pixel[0]) - mean[0]
+    green = float(pixel[1]) - mean[1]
+    blue = float(pixel[2]) - mean[2]
+    return math.sqrt(red * red + green * green + blue * blue)
+
+
+def fill_internal_holes(
+    mask: Image.Image,
+    max_hole_foreground_ratio: float = 0.12,
+    max_hole_bbox_ratio: float = 0.08,
+    max_absolute_hole_area: int = 2500,
+) -> Image.Image:
+    binary = mask.convert("1")
+    width, height = binary.size
+    pixels = binary.load()
+    outside: set[tuple[int, int]] = set()
+    queue: deque[tuple[int, int]] = deque()
+
+    for x in range(width):
+        for y in (0, height - 1):
+            if not pixels[x, y] and (x, y) not in outside:
+                outside.add((x, y))
+                queue.append((x, y))
+    for y in range(height):
+        for x in (0, width - 1):
+            if not pixels[x, y] and (x, y) not in outside:
+                outside.add((x, y))
+                queue.append((x, y))
+
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if nx < 0 or ny < 0 or nx >= width or ny >= height or (nx, ny) in outside:
+                continue
+            if not pixels[nx, ny]:
+                outside.add((nx, ny))
+                queue.append((nx, ny))
+
+    bbox = mask.convert("L").point(lambda value: 255 if value > 127 else 0).getbbox()
+    bbox_area = max(1, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])) if bbox else width * height
+    foreground_area = sum(1 for value in mask.convert("L").getdata() if value > 127)
+    ratio_cap = min(int(foreground_area * max_hole_foreground_ratio), int(bbox_area * max_hole_bbox_ratio))
+    max_hole_area = max(48, min(max_absolute_hole_area, ratio_cap))
+
+    fill_pixels: set[tuple[int, int]] = set()
+    seen = set(outside)
+    for y in range(height):
+        for x in range(width):
+            if pixels[x, y] or (x, y) in seen:
+                continue
+            hole = flood_background_hole(pixels, x, y, width, height, seen)
+            if len(hole) <= max_hole_area:
+                fill_pixels.update(hole)
+
+    filled = Image.new("L", (width, height), 0)
+    out = filled.load()
+    for y in range(height):
+        for x in range(width):
+            if pixels[x, y] or (x, y) in fill_pixels:
+                out[x, y] = 255
+    return filled
+
+
+def flood_background_hole(
+    pixels,
+    start_x: int,
+    start_y: int,
+    width: int,
+    height: int,
+    seen: set[tuple[int, int]],
+) -> set[tuple[int, int]]:
+    hole = {(start_x, start_y)}
+    queue: deque[tuple[int, int]] = deque([(start_x, start_y)])
+    seen.add((start_x, start_y))
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if nx < 0 or ny < 0 or nx >= width or ny >= height or (nx, ny) in seen:
+                continue
+            if not pixels[nx, ny]:
+                seen.add((nx, ny))
+                hole.add((nx, ny))
+                queue.append((nx, ny))
+    return hole
+
+
+def remove_tiny_islands(mask: Image.Image, min_area: int = 18) -> Image.Image:
+    try:
+        return remove_tiny_islands_cv2(mask, min_area=min_area)
+    except Exception:
+        return remove_tiny_islands_python(mask, min_area=min_area)
+
+
+def remove_tiny_islands_cv2(mask: Image.Image, min_area: int = 18) -> Image.Image:
+    import cv2
+    import numpy as np
+
+    array = np.array(mask.convert("L"))
+    binary = np.where(array > 127, 255, 0).astype("uint8")
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    if count <= 1:
+        return Image.fromarray(binary, mode="L")
+
+    largest_index = max(range(1, count), key=lambda index: int(stats[index, cv2.CC_STAT_AREA]))
+    refined = np.zeros_like(binary)
+    refined[labels == largest_index] = 255
+    return Image.fromarray(refined, mode="L")
+
+
+def remove_tiny_islands_python(mask: Image.Image, min_area: int = 18) -> Image.Image:
+    binary = mask.convert("1")
+    width, height = binary.size
+    pixels = binary.load()
+    seen: set[tuple[int, int]] = set()
+    components: list[set[tuple[int, int]]] = []
+
+    for y in range(height):
+        for x in range(width):
+            if (x, y) in seen or not pixels[x, y]:
+                continue
+            component = flood_component_pixels(pixels, x, y, width, height, seen)
+            components.append(component)
+
+    if not components:
+        return Image.new("L", mask.size, 0)
+
+    largest = max(components, key=len)
+    refined = Image.new("L", mask.size, 0)
+    out = refined.load()
+    for x, y in largest:
+        out[x, y] = 255
+    return refined
+
+
+def flood_component_pixels(
+    pixels,
+    start_x: int,
+    start_y: int,
+    width: int,
+    height: int,
+    seen: set[tuple[int, int]],
+) -> set[tuple[int, int]]:
+    component = {(start_x, start_y)}
+    queue: deque[tuple[int, int]] = deque([(start_x, start_y)])
+    seen.add((start_x, start_y))
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in (
+            (x - 1, y),
+            (x + 1, y),
+            (x, y - 1),
+            (x, y + 1),
+            (x - 1, y - 1),
+            (x + 1, y - 1),
+            (x - 1, y + 1),
+            (x + 1, y + 1),
+        ):
+            if nx < 0 or ny < 0 or nx >= width or ny >= height or (nx, ny) in seen:
+                continue
+            if pixels[nx, ny]:
+                seen.add((nx, ny))
+                component.add((nx, ny))
+                queue.append((nx, ny))
+    return component
 
 
 def estimate_background(image: Image.Image) -> tuple[float, float, float]:
@@ -513,9 +966,13 @@ def measure_mask(mask: Image.Image) -> dict:
     thinness = clamp(perimeter / max(area, 1) * 4.8)
     curvature = clamp((perimeter * perimeter) / (max(area, 1) * 42))
     grid_3x3 = mask_grid_signature(mask)
+    grid_5x7 = mask_grid_signature(mask, rows=7, cols=5, size=140, preserve_aspect=True)
     projection_x, projection_y = mask_projection_signature(mask)
     contour_grid_4x4 = mask_contour_grid_signature(mask)
     shape_context = mask_shape_context_signature(mask)
+    stroke_geometry = mask_stroke_geometry_signature(mask)
+    diagonal_geometry = mask_diagonal_geometry_signature(mask, grid_3x3=grid_3x3)
+    quality = mask_quality_metrics(mask, points=points, bbox=bbox, area=area, perimeter=perimeter)
 
     return {
         "area": area,
@@ -530,15 +987,182 @@ def measure_mask(mask: Image.Image) -> dict:
         "boldness_score": round(boldness, 4),
         "slant_score": round(clamp(math.degrees(angle) / 45, -1, 1), 4),
         "aspect_ratio": round(bbox_width / max(bbox_height, 1), 4),
+        "bbox_width_ratio": round(bbox_width / max(width, 1), 4),
+        "bbox_height_ratio": round(bbox_height / max(height, 1), 4),
         "fill_ratio": round(area / bbox_area, 4),
         "grid_3x3": grid_3x3,
         "grid_3x3_binary": [1 if value >= 0.16 else 0 for value in grid_3x3],
+        "grid_5x7": grid_5x7,
+        "grid_5x7_binary": [1 if value >= 0.12 else 0 for value in grid_5x7],
         "projection_x": projection_x,
         "projection_y": projection_y,
         "contour_grid_4x4": contour_grid_4x4,
         "shape_context": shape_context,
+        **quality,
+        **stroke_geometry,
+        **diagonal_geometry,
         "bbox": [bbox[0], bbox[1], bbox_width, bbox_height],
     }
+
+
+def mask_quality_metrics(
+    mask: Image.Image,
+    points: list[tuple[int, int]] | None = None,
+    bbox: tuple[int, int, int, int] | None = None,
+    area: int | None = None,
+    perimeter: int | None = None,
+) -> dict:
+    binary = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    width, height = binary.size
+    if max(width, height) > 220:
+        scale = 220 / max(width, height)
+        small_size = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
+        small = binary.resize(small_size, Image.Resampling.NEAREST)
+        return mask_quality_metrics(small)
+
+    bbox = bbox or binary.getbbox()
+    if not bbox:
+        return {
+            "mask_quality_score": 0.0,
+            "mask_quality_reasons": ["empty_mask"],
+            "mask_component_count": 0,
+            "mask_largest_component_ratio": 0.0,
+            "mask_crop_edge_contact_ratio": 1.0,
+            "mask_hole_ratio": 0.0,
+            "mask_padding_balance": 0.0,
+            "mask_patchiness_score": 1.0,
+        }
+
+    if points is None:
+        pixels = binary.load()
+        points = [(x, y) for y in range(height) for x in range(width) if pixels[x, y] > 127]
+    area = int(area if area is not None else len(points))
+    perimeter = int(perimeter if perimeter is not None else mask_perimeter(binary))
+    components = connected_components(binary, min_area=1)
+    large_components = [component for component in components if component.area >= max(16, area * 0.015)]
+    largest_area = max((component.area for component in components), default=0)
+    largest_ratio = largest_area / max(1, area)
+    edge_contact = mask_edge_contact_ratio(binary)
+    hole_ratio = internal_hole_ratio(binary, area)
+    padding_balance = crop_padding_balance(bbox, (width, height))
+    patchiness = mask_patchiness_score(binary, area=area, perimeter=perimeter, bbox=bbox)
+    edge_density = perimeter / max(1, area)
+    fill_ratio = area / max(1, (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]))
+
+    score = 1.0
+    reasons: list[str] = []
+    penalties = [
+        (largest_ratio >= 0.72, 0.28, "fragmented_components"),
+        (len(large_components) <= 3, 0.18, "too_many_large_components"),
+        (edge_contact <= 0.045, 0.22, "foreground_touches_crop_edge"),
+        (hole_ratio <= 0.2, 0.18, "large_internal_holes"),
+        (padding_balance <= 0.35, 0.12, "uneven_crop_padding"),
+        (patchiness >= 0.58, 0.28, "giant_or_noisy_patch"),
+        (edge_density <= 0.18 or fill_ratio <= 0.38, 0.2, "jagged_or_shredded_mask"),
+        (fill_ratio <= 0.74, 0.18, "overfilled_blob_mask"),
+    ]
+    for passed, penalty, reason in penalties:
+        if not passed:
+            score -= penalty
+            reasons.append(reason)
+
+    return {
+        "mask_quality_score": round(clamp(score), 4),
+        "mask_quality_reasons": reasons,
+        "mask_component_count": len(large_components),
+        "mask_largest_component_ratio": round(largest_ratio, 4),
+        "mask_crop_edge_contact_ratio": round(edge_contact, 4),
+        "mask_hole_ratio": round(hole_ratio, 4),
+        "mask_padding_balance": round(padding_balance, 4),
+        "mask_patchiness_score": round(patchiness, 4),
+        "mask_edge_density": round(edge_density, 4),
+    }
+
+
+def mask_perimeter(mask: Image.Image) -> int:
+    binary = mask.convert("L")
+    pixels = binary.load()
+    width, height = binary.size
+    return sum(
+        1
+        for y in range(height)
+        for x in range(width)
+        if pixels[x, y] > 127 and is_edge(pixels, x, y, width, height)
+    )
+
+
+def mask_edge_contact_ratio(mask: Image.Image) -> float:
+    binary = mask.convert("L")
+    pixels = binary.load()
+    width, height = binary.size
+    edge_pixels = foreground_edge_pixels = 0
+    for x in range(width):
+        for y in (0, height - 1):
+            edge_pixels += 1
+            foreground_edge_pixels += int(pixels[x, y] > 127)
+    for y in range(1, height - 1):
+        for x in (0, width - 1):
+            edge_pixels += 1
+            foreground_edge_pixels += int(pixels[x, y] > 127)
+    return foreground_edge_pixels / max(1, edge_pixels)
+
+
+def internal_hole_ratio(mask: Image.Image, foreground_area: int) -> float:
+    try:
+        return internal_hole_ratio_cv2(mask, foreground_area)
+    except Exception:
+        pass
+    before = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
+    filled = fill_internal_holes(
+        before,
+        max_hole_foreground_ratio=1.0,
+        max_hole_bbox_ratio=1.0,
+        max_absolute_hole_area=before.width * before.height,
+    )
+    added = sum(1 for left, right in zip(before.getdata(), filled.getdata()) if left <= 127 and right > 127)
+    return added / max(1, foreground_area)
+
+
+def internal_hole_ratio_cv2(mask: Image.Image, foreground_area: int) -> float:
+    import cv2
+    import numpy as np
+
+    array = np.array(mask.convert("L"))
+    background = np.where(array > 127, 0, 255).astype("uint8")
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(background, connectivity=4)
+    height, width = background.shape
+    hole_area = 0
+    for index in range(1, count):
+        x, y, component_width, component_height, area = stats[index]
+        touches_border = x == 0 or y == 0 or x + component_width >= width or y + component_height >= height
+        if not touches_border:
+            hole_area += int(area)
+    return hole_area / max(1, foreground_area)
+
+
+def crop_padding_balance(bbox: tuple[int, int, int, int], size: tuple[int, int]) -> float:
+    width, height = size
+    x0, y0, x1, y1 = bbox
+    left = x0 / max(1, width)
+    right = (width - x1) / max(1, width)
+    top = y0 / max(1, height)
+    bottom = (height - y1) / max(1, height)
+    return max(abs(left - right), abs(top - bottom))
+
+
+def mask_patchiness_score(mask: Image.Image, area: int, perimeter: int, bbox: tuple[int, int, int, int]) -> float:
+    x0, y0, x1, y1 = bbox
+    bbox_area = max(1, (x1 - x0) * (y1 - y0))
+    fill = area / bbox_area
+    edge_density = perimeter / max(1, area)
+    score = 1.0
+    if fill > 0.82:
+        score -= min(0.55, (fill - 0.82) * 2.2)
+    if fill < 0.045:
+        score -= min(0.55, (0.045 - fill) * 7.0)
+    if edge_density > 0.48:
+        score -= min(0.5, (edge_density - 0.48) * 1.3)
+    return clamp(score)
 
 
 def score_goose_candidate(
@@ -558,6 +1182,7 @@ def score_goose_candidate(
     thinness = float(features.get("thinness_score", 0))
     curvature = float(features.get("curvature_score", 0))
     area = float(features.get("area", 0))
+    mask_quality = float(features.get("mask_quality_score", 1))
     border_contact = border_contact_ratio((x0, y0, x1, y1), image_size)
 
     score = 1.0
@@ -567,7 +1192,7 @@ def score_goose_candidate(
         (area >= image_area * 0.0015, 0.45, "too_small"),
         (bbox_area_ratio <= 0.82, 0.45, "too_large_for_single_goose"),
         (0.22 <= aspect_ratio <= 4.8, 0.55, "implausible_aspect_ratio"),
-        (0.07 <= fill_ratio <= 0.78, 0.45, "implausible_fill_ratio"),
+        (0.07 <= fill_ratio <= 0.76, 0.6, "implausible_fill_ratio"),
         (thinness <= 0.95, 0.55, "too_thin_or_branchlike"),
         (border_contact <= 0.52, 0.3, "touches_image_border_too_much"),
     ]
@@ -584,6 +1209,15 @@ def score_goose_candidate(
     if bbox_width < 24 or bbox_height < 24:
         score -= 0.3
         reasons.append("bbox_too_small")
+    if mask_quality < 0.45:
+        score -= 0.35
+        reasons.append("low_mask_quality")
+    elif mask_quality < 0.65:
+        score -= 0.15
+        reasons.append("borderline_mask_quality")
+    if fill_ratio > 0.76 and "overfilled_blob_mask" in features.get("mask_quality_reasons", []):
+        score -= 0.2
+        reasons.append("overfilled_mask")
 
     return {
         "goose_candidate_score": round(clamp(score), 4),
@@ -644,13 +1278,27 @@ def empty_features() -> dict:
         "boldness_score": 0,
         "slant_score": 0,
         "aspect_ratio": 1,
+        "bbox_width_ratio": 0,
+        "bbox_height_ratio": 0,
         "fill_ratio": 0,
         "grid_3x3": [0.0] * 9,
         "grid_3x3_binary": [0] * 9,
+        "grid_5x7": [0.0] * 35,
+        "grid_5x7_binary": [0] * 35,
         "projection_x": [0.0] * 16,
         "projection_y": [0.0] * 16,
         "contour_grid_4x4": [0.0] * 16,
         "shape_context": [0.0] * 32,
+        "horizontal_bands": [0.0] * 12,
+        "vertical_bands": [0.0] * 12,
+        "horizontal_run_signature": [0.0] * 7,
+        "vertical_run_signature": [0.0] * 5,
+        "stroke_axis_strength": [0.0, 0.0],
+        "diagonal_grid_signature": [0.0] * 6,
+        "diagonal_grid_binary": [0] * 6,
+        "diagonal_band_signature": [0.0] * 6,
+        "diagonal_axis_strength": [0.0, 0.0],
+        "corner_balance": [0.0] * 4,
         "bbox": [0, 0, 1, 1],
     }
 
@@ -710,8 +1358,8 @@ def mask_iou(a: Image.Image, b: Image.Image, size: int = 160) -> dict:
 
 
 def aligned_mask_similarity(a: Image.Image, b: Image.Image, size: int = 160) -> dict:
-    canvas_a = normalize_mask_to_bbox(a, size=size)
-    canvas_b = normalize_mask_to_bbox(b, size=size)
+    canvas_a = normalize_mask_to_bbox(a, size=size, preserve_aspect=True)
+    canvas_b = normalize_mask_to_bbox(b, size=size, preserve_aspect=True)
     pixels_a = canvas_a.load()
     pixels_b = canvas_b.load()
     intersection = union = identical_on = 0
@@ -742,7 +1390,12 @@ def aligned_mask_similarity(a: Image.Image, b: Image.Image, size: int = 160) -> 
     }
 
 
-def normalize_mask_to_bbox(mask: Image.Image, size: int = 160, margin: int = 8) -> Image.Image:
+def normalize_mask_to_bbox(
+    mask: Image.Image,
+    size: int = 160,
+    margin: int = 8,
+    preserve_aspect: bool = False,
+) -> Image.Image:
     source = mask.convert("L").point(lambda value: 255 if value > 127 else 0)
     bbox = source.getbbox()
     canvas = Image.new("L", (size, size), 0)
@@ -751,14 +1404,23 @@ def normalize_mask_to_bbox(mask: Image.Image, size: int = 160, margin: int = 8) 
 
     cropped = source.crop(bbox)
     target_size = max(1, size - margin * 2)
-    normalized = cropped.resize((target_size, target_size), Image.Resampling.BILINEAR)
+    if preserve_aspect:
+        normalized = ImageOps.contain(cropped, (target_size, target_size), Image.Resampling.BILINEAR)
+    else:
+        normalized = cropped.resize((target_size, target_size), Image.Resampling.BILINEAR)
     normalized = normalized.point(lambda value: 255 if value > 96 else 0)
-    canvas.paste(normalized, (margin, margin))
+    canvas.paste(normalized, ((size - normalized.width) // 2, (size - normalized.height) // 2))
     return canvas
 
 
-def mask_grid_signature(mask: Image.Image, rows: int = 3, cols: int = 3, size: int = 96) -> list[float]:
-    normalized = normalize_mask_to_bbox(mask, size=size, margin=0)
+def mask_grid_signature(
+    mask: Image.Image,
+    rows: int = 3,
+    cols: int = 3,
+    size: int = 96,
+    preserve_aspect: bool = False,
+) -> list[float]:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0, preserve_aspect=preserve_aspect)
     pixels = normalized.load()
     signature: list[float] = []
     for row in range(rows):
@@ -774,6 +1436,155 @@ def mask_grid_signature(mask: Image.Image, rows: int = 3, cols: int = 3, size: i
                     if pixels[x, y] > 127:
                         occupied += 1
             signature.append(round(occupied / total, 4))
+    return signature
+
+
+def mask_stroke_geometry_signature(mask: Image.Image, size: int = 112) -> dict:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0, preserve_aspect=True)
+    pixels = normalized.load()
+    row_counts = [0] * size
+    col_counts = [0] * size
+    horizontal_runs = [0] * size
+    vertical_runs = [0] * size
+
+    for y in range(size):
+        current = longest = 0
+        for x in range(size):
+            if pixels[x, y] > 127:
+                row_counts[y] += 1
+                col_counts[x] += 1
+                current += 1
+                longest = max(longest, current)
+            else:
+                current = 0
+        horizontal_runs[y] = longest
+
+    for x in range(size):
+        current = longest = 0
+        for y in range(size):
+            if pixels[x, y] > 127:
+                current += 1
+                longest = max(longest, current)
+            else:
+                current = 0
+        vertical_runs[x] = longest
+
+    max_row = max(1, max(row_counts))
+    max_col = max(1, max(col_counts))
+    return {
+        "horizontal_bands": projection_bands(row_counts, max_value=max_row, max_bands=4),
+        "vertical_bands": projection_bands(col_counts, max_value=max_col, max_bands=4),
+        "horizontal_run_signature": binned_run_signature(horizontal_runs, rows_or_cols=7, normalize_by=size),
+        "vertical_run_signature": binned_run_signature(vertical_runs, rows_or_cols=5, normalize_by=size),
+        "stroke_axis_strength": [
+            round(sum(horizontal_runs) / max(1, size * size), 4),
+            round(sum(vertical_runs) / max(1, size * size), 4),
+        ],
+    }
+
+
+def mask_diagonal_geometry_signature(mask: Image.Image, grid_3x3: list[float] | None = None, size: int = 112) -> dict:
+    normalized = normalize_mask_to_bbox(mask, size=size, margin=0, preserve_aspect=True)
+    pixels = normalized.load()
+    grid = grid_3x3 or mask_grid_signature(mask)
+    main_grid = [grid[0], grid[4], grid[8]] if len(grid) >= 9 else [0.0, 0.0, 0.0]
+    anti_grid = [grid[2], grid[4], grid[6]] if len(grid) >= 9 else [0.0, 0.0, 0.0]
+
+    band_width = max(2, round(size * 0.085))
+    main_counts = [0, 0, 0]
+    main_totals = [0, 0, 0]
+    anti_counts = [0, 0, 0]
+    anti_totals = [0, 0, 0]
+    main_run = anti_run = 0
+
+    for diagonal_index in range(size):
+        main_has_pixel = False
+        anti_has_pixel = False
+        for offset in range(-band_width, band_width + 1):
+            x = diagonal_index + offset
+            y = diagonal_index
+            if 0 <= x < size:
+                segment = min(2, y * 3 // size)
+                main_totals[segment] += 1
+                if pixels[x, y] > 127:
+                    main_counts[segment] += 1
+                    main_has_pixel = True
+
+            anti_x = size - 1 - diagonal_index + offset
+            anti_y = diagonal_index
+            if 0 <= anti_x < size:
+                segment = min(2, anti_y * 3 // size)
+                anti_totals[segment] += 1
+                if pixels[anti_x, anti_y] > 127:
+                    anti_counts[segment] += 1
+                    anti_has_pixel = True
+
+        if main_has_pixel:
+            main_run += 1
+        if anti_has_pixel:
+            anti_run += 1
+
+    main_band = [round(main_counts[index] / max(1, main_totals[index]), 4) for index in range(3)]
+    anti_band = [round(anti_counts[index] / max(1, anti_totals[index]), 4) for index in range(3)]
+    corners = [grid[index] if len(grid) > index else 0.0 for index in (0, 2, 6, 8)]
+    return {
+        "diagonal_grid_signature": [round(value, 4) for value in main_grid + anti_grid],
+        "diagonal_grid_binary": [1 if value >= 0.16 else 0 for value in main_grid + anti_grid],
+        "diagonal_band_signature": main_band + anti_band,
+        "diagonal_axis_strength": [round(main_run / size, 4), round(anti_run / size, 4)],
+        "corner_balance": [round(value, 4) for value in corners],
+    }
+
+
+def projection_bands(
+    values: list[int],
+    max_value: int,
+    max_bands: int = 4,
+    threshold_ratio: float = 0.38,
+) -> list[float]:
+    if not values or max_value <= 0:
+        return [0.0] * (max_bands * 3)
+
+    threshold = max_value * threshold_ratio
+    bands: list[tuple[float, float, float]] = []
+    start: int | None = None
+    total = 0
+    peak = 0
+    for index, value in enumerate(values + [0]):
+        if value >= threshold:
+            if start is None:
+                start = index
+                total = 0
+                peak = 0
+            total += value
+            peak = max(peak, value)
+            continue
+        if start is None:
+            continue
+        end = index
+        thickness = end - start
+        center = (start + end - 1) / 2
+        strength = total / max(1, thickness * max_value)
+        bands.append((center / max(1, len(values) - 1), thickness / len(values), strength))
+        start = None
+
+    bands.sort(key=lambda item: item[2], reverse=True)
+    bands = sorted(bands[:max_bands], key=lambda item: item[0])
+    signature: list[float] = []
+    for center, thickness, strength in bands:
+        signature.extend([round(center, 4), round(thickness, 4), round(strength, 4)])
+    signature.extend([0.0] * (max_bands * 3 - len(signature)))
+    return signature
+
+
+def binned_run_signature(runs: list[int], rows_or_cols: int, normalize_by: int) -> list[float]:
+    signature: list[float] = []
+    length = len(runs)
+    for index in range(rows_or_cols):
+        start = index * length // rows_or_cols
+        end = (index + 1) * length // rows_or_cols
+        bucket = runs[start:end]
+        signature.append(round((max(bucket) if bucket else 0) / max(1, normalize_by), 4))
     return signature
 
 

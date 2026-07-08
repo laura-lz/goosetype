@@ -18,8 +18,8 @@ from goosetype.image_features import measure_mask
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compute GooseType geometry features from extracted goose masks.")
-    parser.add_argument("--metadata", default="data/processed/metadata.json")
-    parser.add_argument("--output", default="data/processed/features.json")
+    parser.add_argument("--metadata", default="data/masks_v2_from_crops/metadata.json")
+    parser.add_argument("--output", default="data/masks_v2_from_crops/features.json")
     args = parser.parse_args()
 
     metadata = json.loads(Path(args.metadata).read_text(encoding="utf-8"))
